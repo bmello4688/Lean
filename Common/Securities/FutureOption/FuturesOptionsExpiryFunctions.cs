@@ -120,7 +120,10 @@ namespace QuantConnect.Securities.FutureOption
             var baseOptionExpiryMonthDate = new DateTime(futureOptionExpirationDate.Year, futureOptionExpirationDate.Month, 1);
             if (!_futuresOptionsExpiryDelta.ContainsKey(canonicalFutureSymbol))
             {
-                return baseOptionExpiryMonthDate;
+                var futuresExpiry = FuturesExpiryFunctions.FuturesExpiryFunction(canonicalFutureSymbol)(baseOptionExpiryMonthDate);
+                var futuresDelta = FuturesExpiryUtilityFunctions.GetDeltaBetweenContractMonthAndContractExpiry(canonicalFutureSymbol.ID.Symbol, futuresExpiry);
+
+                return baseOptionExpiryMonthDate.AddMonths(futuresDelta);
             }
 
             return baseOptionExpiryMonthDate.AddMonths(_futuresOptionsExpiryDelta[canonicalFutureSymbol]);
