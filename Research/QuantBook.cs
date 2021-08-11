@@ -37,6 +37,7 @@ using QuantConnect.Logging;
 using QuantConnect.Packets;
 using QuantConnect.Lean.Engine.DataFeeds.Enumerators.Factories;
 using System.Threading.Tasks;
+using Deedle;
 
 namespace QuantConnect.Research
 {
@@ -451,7 +452,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of an indicator</returns>
-        public PyObject Indicator(IndicatorBase<IndicatorDataPoint> indicator, Symbol symbol, int period, Resolution? resolution = null, Func<IBaseData, decimal> selector = null)
+        public dynamic Indicator(IndicatorBase<IndicatorDataPoint> indicator, Symbol symbol, int period, Resolution? resolution = null, Func<IBaseData, decimal> selector = null)
         {
             var history = History(new[] { symbol }, period, resolution);
             return Indicator(indicator, history, selector);
@@ -466,7 +467,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of a bar indicator</returns>
-        public PyObject Indicator(IndicatorBase<IBaseDataBar> indicator, Symbol symbol, int period, Resolution? resolution = null, Func<IBaseData, IBaseDataBar> selector = null)
+        public dynamic Indicator(IndicatorBase<IBaseDataBar> indicator, Symbol symbol, int period, Resolution? resolution = null, Func<IBaseData, IBaseDataBar> selector = null)
         {
             var history = History(new[] { symbol }, period, resolution);
             return Indicator(indicator, history, selector);
@@ -481,7 +482,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of a bar indicator</returns>
-        public PyObject Indicator(IndicatorBase<TradeBar> indicator, Symbol symbol, int period, Resolution? resolution = null, Func<IBaseData, TradeBar> selector = null)
+        public dynamic Indicator(IndicatorBase<TradeBar> indicator, Symbol symbol, int period, Resolution? resolution = null, Func<IBaseData, TradeBar> selector = null)
         {
             var history = History(new[] { symbol }, period, resolution);
             return Indicator(indicator, history, selector);
@@ -497,7 +498,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of an indicator</returns>
-        public PyObject Indicator(IndicatorBase<IndicatorDataPoint> indicator, Symbol symbol, TimeSpan span, Resolution? resolution = null, Func<IBaseData, decimal> selector = null)
+        public dynamic Indicator(IndicatorBase<IndicatorDataPoint> indicator, Symbol symbol, TimeSpan span, Resolution? resolution = null, Func<IBaseData, decimal> selector = null)
         {
             var history = History(new[] { symbol }, span, resolution);
             return Indicator(indicator, history, selector);
@@ -513,7 +514,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of a bar indicator</returns>
-        public PyObject Indicator(IndicatorBase<IBaseDataBar> indicator, Symbol symbol, TimeSpan span, Resolution? resolution = null, Func<IBaseData, IBaseDataBar> selector = null)
+        public dynamic Indicator(IndicatorBase<IBaseDataBar> indicator, Symbol symbol, TimeSpan span, Resolution? resolution = null, Func<IBaseData, IBaseDataBar> selector = null)
         {
             var history = History(new[] { symbol }, span, resolution);
             return Indicator(indicator, history, selector);
@@ -529,7 +530,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of a bar indicator</returns>
-        public PyObject Indicator(IndicatorBase<TradeBar> indicator, Symbol symbol, TimeSpan span, Resolution? resolution = null, Func<IBaseData, TradeBar> selector = null)
+        public dynamic Indicator(IndicatorBase<TradeBar> indicator, Symbol symbol, TimeSpan span, Resolution? resolution = null, Func<IBaseData, TradeBar> selector = null)
         {
             var history = History(new[] { symbol }, span, resolution);
             return Indicator(indicator, history, selector);
@@ -546,7 +547,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of an indicator</returns>
-        public PyObject Indicator(IndicatorBase<IndicatorDataPoint> indicator, Symbol symbol, DateTime start, DateTime end, Resolution? resolution = null, Func<IBaseData, decimal> selector = null)
+        public dynamic Indicator(IndicatorBase<IndicatorDataPoint> indicator, Symbol symbol, DateTime start, DateTime end, Resolution? resolution = null, Func<IBaseData, decimal> selector = null)
         {
             var history = History(new[] { symbol }, start, end, resolution);
             return Indicator(indicator, history, selector);
@@ -563,7 +564,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of a bar indicator</returns>
-        public PyObject Indicator(IndicatorBase<IBaseDataBar> indicator, Symbol symbol, DateTime start, DateTime end, Resolution? resolution = null, Func<IBaseData, IBaseDataBar> selector = null)
+        public dynamic Indicator(IndicatorBase<IBaseDataBar> indicator, Symbol symbol, DateTime start, DateTime end, Resolution? resolution = null, Func<IBaseData, IBaseDataBar> selector = null)
         {
             var history = History(new[] { symbol }, start, end, resolution);
             return Indicator(indicator, history, selector);
@@ -580,7 +581,7 @@ namespace QuantConnect.Research
         /// <param name="resolution">The resolution to request</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame of historical data of a bar indicator</returns>
-        public PyObject Indicator(IndicatorBase<TradeBar> indicator, Symbol symbol, DateTime start, DateTime end, Resolution? resolution = null, Func<IBaseData, TradeBar> selector = null)
+        public dynamic Indicator(IndicatorBase<TradeBar> indicator, Symbol symbol, DateTime start, DateTime end, Resolution? resolution = null, Func<IBaseData, TradeBar> selector = null)
         {
             var history = History(new[] { symbol }, start, end, resolution);
             return Indicator(indicator, history, selector);
@@ -699,7 +700,7 @@ namespace QuantConnect.Research
         /// <param name="history">Historical data used to calculate the indicator</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame containing the historical data of <param name="indicator"></returns>
-        public PyObject Indicator(IndicatorBase<IndicatorDataPoint> indicator, IEnumerable<Slice> history, Func<IBaseData, decimal> selector = null)
+        public dynamic Indicator(IndicatorBase<IndicatorDataPoint> indicator, IEnumerable<Slice> history, Func<IBaseData, decimal> selector = null)
         {
             // Reset the indicator
             indicator.Reset();
@@ -734,7 +735,10 @@ namespace QuantConnect.Research
                 indicator.Update(bar.EndTime, value);
             });
 
-            return PandasConverter.GetIndicatorDataFrame(properties);
+            if (_isPythonNotebook)
+                return PandasConverter.GetIndicatorDataFrame(properties);
+            else
+                return properties.ToDataFrame();
         }
 
         /// <summary>
@@ -744,7 +748,7 @@ namespace QuantConnect.Research
         /// <param name="history">Historical data used to calculate the indicator</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame containing the historical data of <param name="indicator"></returns>
-        private PyObject Indicator<T>(IndicatorBase<T> indicator, IEnumerable<Slice> history, Func<IBaseData, T> selector = null)
+        private dynamic Indicator<T>(IndicatorBase<T> indicator, IEnumerable<Slice> history, Func<IBaseData, T> selector = null)
             where T : IBaseData
         {
             // Reset the indicator
@@ -776,7 +780,10 @@ namespace QuantConnect.Research
 
             history.PushThrough(bar => indicator.Update(selector(bar)));
 
-            return PandasConverter.GetIndicatorDataFrame(properties);
+            if (_isPythonNotebook)
+                return PandasConverter.GetIndicatorDataFrame(properties);
+            else
+                return properties.ToDataFrame();
         }
 
         /// <summary>
@@ -785,7 +792,7 @@ namespace QuantConnect.Research
         /// <param name="baseData">Object with the desired property</param>
         /// <param name="fullName">Property name</param>
         /// <returns>Property value</returns>
-        private object GetPropertyValue(object baseData, string fullName)
+        private static object GetPropertyValue(object baseData, string fullName)
         {
             foreach (var name in fullName.Split('.'))
             {
