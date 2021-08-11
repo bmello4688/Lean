@@ -14,7 +14,6 @@ using Microsoft.DotNet.Interactive.Formatting;
 using static Microsoft.DotNet.Interactive.Formatting.PocketViewTags;
 using System.IO;
 using System.Reflection;
-using TDAmeritradeApi.Client;
 
 namespace QuantConnect.Research.Interactive
 {

@@ -10,7 +10,6 @@
     <PackageReference Include="Microsoft.DotNet.Interactive" Version="1.0.0-beta.21357.1" />
     <PackageReference Include="Microsoft.DotNet.Interactive.CSharp" Version="1.0.0-beta.21357.1" />
     <PackageReference Include="Microsoft.DotNet.Interactive.Formatting" Version="1.0.0-beta.21357.1" />
-    <PackageReference Include="TDAmeritradeApi.Client" Version="1.2.3" />
     <PackageReference Include="XPlot.Plotly.Interactive" Version="4.0.3" />
   </ItemGroup>
 

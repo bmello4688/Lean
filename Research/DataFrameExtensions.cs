@@ -15,6 +15,7 @@ namespace QuantConnect.Research
 {
     public static class DataFrameExtensions
     {
+        private const string DateTimeColumn = "Time";
 
         public static Frame<DateTime, string> ToDataFrame<T>(this IEnumerable<Slice> slices, Func<Slice, DataDictionary<T>> getDataDictionary)
             where T : IBar
@@ -36,7 +37,7 @@ namespace QuantConnect.Research
                 }
             }
 
-            dataFrame = dataFrame.IndexRows<DateTime>("Time").SortRowsByKey();
+            dataFrame = dataFrame.IndexRows<DateTime>(DateTimeColumn).SortRowsByKey();
 
             return dataFrame;
         }
@@ -56,7 +57,7 @@ namespace QuantConnect.Research
                 var symbolToData = enumerator.Current;
 
                 var builder = new SeriesBuilder<string>();
-                builder.Add(nameof(slice.Time), slice.Time);
+                builder.Add(DateTimeColumn, slice.Time);
 
                 builder.Add(nameof(Symbol), symbolToData.Key.Value);
 
@@ -72,6 +73,8 @@ namespace QuantConnect.Research
                 {
                     builder.Add(nameof(tradeBar.Volume), tradeBar.Volume);
                 }
+
+
 
                 rows.Add(new KeyValuePair<DateTime, Series<string, object>>(slice.Time, builder.Series));
             }
