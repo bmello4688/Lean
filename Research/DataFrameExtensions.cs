@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using XPlot.Plotly;
 using XChart = XPlot.Plotly.Chart;
 using Graph = XPlot.Plotly;
+using QuantConnect.Indicators;
 
 namespace QuantConnect.Research
 {
@@ -80,6 +81,32 @@ namespace QuantConnect.Research
             }
 
             return Frame.FromRows(rows);
+        }
+
+        public static Frame<DateTime, string> ToDataFrame(this Dictionary<string, List<IndicatorDataPoint>> data)
+        {
+            Dictionary<DateTime, SeriesBuilder<string>> timetoSeries = new Dictionary<DateTime, SeriesBuilder<string>>();
+            foreach (var kvp in data)
+            {
+                foreach (var item in kvp.Value)
+                {
+                    var index = item.EndTime;
+                    if (!timetoSeries.ContainsKey(index))
+                    {
+                        var builder = new SeriesBuilder<string>();
+                        builder.Add(DateTimeColumn, index);
+                        builder.Add(kvp.Key, item.Value);
+                        timetoSeries.Add(index, builder);
+                    }
+                    else
+                    {
+                        var builder = timetoSeries[index];
+                        builder.Add(kvp.Key, item.Value);
+                    }
+                }
+            }
+
+            return Frame.FromRows(timetoSeries.ToList().Select(kvp => KeyValuePair.Create(kvp.Key, kvp.Value.Series)));
         }
 
         public static void Show(this IEnumerable<PlotlyChart> charts)
