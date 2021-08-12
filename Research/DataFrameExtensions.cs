@@ -59,7 +59,6 @@ namespace QuantConnect.Research
 
                 var builder = new SeriesBuilder<string>();
                 builder.Add(DateTimeColumn, slice.Time);
-
                 builder.Add(nameof(Symbol), symbolToData.Key.Value);
 
                 if (symbolToData.Value is IBar bar)
@@ -85,28 +84,30 @@ namespace QuantConnect.Research
 
         public static Frame<DateTime, string> ToDataFrame(this Dictionary<string, List<IndicatorDataPoint>> data)
         {
-            Dictionary<DateTime, SeriesBuilder<string>> timetoSeries = new Dictionary<DateTime, SeriesBuilder<string>>();
+            Dictionary<DateTime, Dictionary<string, object>> timetoSeries = new Dictionary<DateTime, Dictionary<string, object>>();
             foreach (var kvp in data)
             {
                 foreach (var item in kvp.Value)
                 {
                     var index = item.EndTime;
+
+                    Dictionary<string, object> builder;
                     if (!timetoSeries.ContainsKey(index))
                     {
-                        var builder = new SeriesBuilder<string>();
-                        builder.Add(DateTimeColumn, index);
-                        builder.Add(kvp.Key, item.Value);
+                        builder = new Dictionary<string, object>();
                         timetoSeries.Add(index, builder);
                     }
                     else
-                    {
-                        var builder = timetoSeries[index];
+                        builder = timetoSeries[index];
+
+                    if (!builder.ContainsKey(kvp.Key))
                         builder.Add(kvp.Key, item.Value);
-                    }
+                    else
+                        throw new InvalidOperationException($"Duplicate time {index}");
                 }
             }
 
-            return Frame.FromRows(timetoSeries.ToList().Select(kvp => KeyValuePair.Create(kvp.Key, kvp.Value.Series)));
+            return Frame.FromRows(timetoSeries.ToList().Select(kvp => KeyValuePair.Create(kvp.Key, kvp.Value.ToSeries())));
         }
 
         public static void Show(this IEnumerable<PlotlyChart> charts)
