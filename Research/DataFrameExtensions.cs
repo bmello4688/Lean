@@ -7,16 +7,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using XPlot.Plotly;
-using XChart = XPlot.Plotly.Chart;
-using Graph = XPlot.Plotly;
+using Plotly.NET;
+using XChart = Plotly.NET.Chart;
+using Graph = Plotly.NET;
+using Frame = Deedle.Frame;
 using QuantConnect.Indicators;
+using Microsoft.FSharp.Collections;
+using Microsoft.FSharp.Core;
+using static Plotly.NET.Colors;
 
 namespace QuantConnect.Research
 {
     public static class DataFrameExtensions
     {
         private const string DateTimeColumn = "Time";
+        private static readonly string[] IgnoredProperties = new string[] { "OPEN", "HIGH", "LOW", "CLOSE", "VOLUME" };
 
         public static Frame<DateTime, string> ToDataFrame<T>(this IEnumerable<Slice> slices, Func<Slice, DataDictionary<T>> getDataDictionary)
             where T : IBar
@@ -110,61 +115,243 @@ namespace QuantConnect.Research
             return Frame.FromRows(timetoSeries.ToList().Select(kvp => KeyValuePair.Create(kvp.Key, kvp.Value.ToSeries())));
         }
 
-        public static void Show(this IEnumerable<PlotlyChart> charts)
+        private class OhlcData
         {
-            XChart.ShowAll(charts);
+            public IEnumerable<DateTime> X { get; }
+
+            public IEnumerable<decimal> Open { get; }
+
+            public IEnumerable<decimal> High { get; }
+
+            public IEnumerable<decimal> Low { get; }
+
+            public IEnumerable<decimal> Close { get; }
+
+            public OhlcData(IEnumerable<DateTime> x, IEnumerable<decimal> open, IEnumerable<decimal> high, IEnumerable<decimal> low, IEnumerable<decimal> close)
+            {
+                X = x;
+                Open = open;
+                High = high;
+                Low = low;
+                Close = close;
+            }
         }
 
-        public static IEnumerable<PlotlyChart> ToOhlcvChart(this Frame<DateTime, string> dataFrame)
+        public static GenericChart.GenericChart ToChart(this object dataFrame, params Series[] seriesArray)
         {
-            var charts = new List<PlotlyChart>();
+            if (dataFrame is Frame<DateTime, string> frame)
+            {
+                return ToChart(frame, seriesArray);
+            }
+            else
+                return null;
+        }
 
-            var ohlc = ToOhlcChart(dataFrame);
+        public static GenericChart.GenericChart ToChart(this Frame<DateTime, string> dataFrame, params Series[] seriesArray)
+        {
+            var charts = new List<GenericChart.GenericChart>();
+
+            var ohlc = AddOhlcChart(dataFrame);
 
             if (ohlc != null)
                 charts.Add(ohlc);
 
-            var volume = ToVolumeChart(dataFrame);
+            var volume = AddVolumeChart(dataFrame);
 
             if (volume != null)
                 charts.Add(volume);
 
-            return charts;
+            if (ohlc != null)
+            {
+                foreach (var series in seriesArray)
+                {
+                    string color = series.Color == System.Drawing.Color.Empty ? null : $"rgb({series.Color.R}, {series.Color.G}, {series.Color.B})";
+                    StyleParam.Symbol? symbol = ConvertScatterMarkerSymbolToPlotly(series.ScatterMarkerSymbol);
+                    var indicator = AddIndicatorToChart(dataFrame, series.Name, series.SeriesType, series.Unit == "$", color, symbol);
+
+                    if (indicator != null)
+                    {
+                        charts.Add(indicator);
+                    }
+                }
+            }
+
+            var chart = GenericChart.combine(charts)
+                .WithLayout(Layout.init<string, string, string, string, string, string, string>
+            (
+                Title: GetTitle(charts),
+                Titlefont: null,
+                Font: null,
+                Showlegend: null,
+                Autosize: true,
+                Width: null,
+                Height: null,
+                Legend: Legend.init
+                (
+                    BGColor: null,
+                    BorderColor: null,
+                    Borderwidth: null,
+                    Orientation: null,
+                    TraceOrder: null,
+                    TraceGroupGap: null,
+                    ItemSizing: null,
+                    ItemWidth: null,
+                    ItemClick: null,
+                    ItemDoubleClick: null,
+                    X: 1.05, //add space to not overlap y2 axis
+                    Y: 1,
+                    XAnchor: null,
+                    YAnchor: null,
+                    VerticalAlign: null,
+                    Title: null
+                ),
+                Annotations: null,
+                Margin: null,
+                Paper_bgcolor: null,
+                Plot_bgcolor: null,
+                Hovermode: null,
+                Dragmode: StyleParam.Dragmode.Zoom,
+                Separators: null,
+                Barmode: null,
+                Bargap: null,
+                Radialaxis: null,
+                Angularaxis: null,
+                Scene: null,
+                Direction: null,
+                Orientation: null,
+                Shapes: null,
+                Hidesources: null,
+                Smith: null,
+                Geo: null
+            ))
+                .WithX_AxisStyle("Date")
+                .WithY_AxisStyle("Price", Side: StyleParam.Side.Left, Id: 1)
+                .WithY_AxisStyle("Unit", Overlaying: StyleParam.AxisAnchorId.NewY(1), Side: StyleParam.Side.Right, Id: 2);
+
+            return chart;
         }
 
-        public static PlotlyChart ToOhlcChart(this Frame<DateTime, string> dataFrame)
+        private static StyleParam.Symbol? ConvertScatterMarkerSymbolToPlotly(ScatterMarkerSymbol scatterMarkerSymbol)
         {
+            switch (scatterMarkerSymbol)
+            {
+                case ScatterMarkerSymbol.None:
+                    return null;
+                case ScatterMarkerSymbol.Circle:
+                    return StyleParam.Symbol.Circle;
+                case ScatterMarkerSymbol.Square:
+                    return StyleParam.Symbol.Square;
+                case ScatterMarkerSymbol.Diamond:
+                    return StyleParam.Symbol.Diamond;
+                case ScatterMarkerSymbol.Triangle:
+                    return StyleParam.Symbol.TriangleUp;
+                case ScatterMarkerSymbol.TriangleDown:
+                    return StyleParam.Symbol.TriangleDown;
+                default:
+                    return StyleParam.Symbol.Circle;
+            }
+        }
+
+        private static string GetTitle(List<GenericChart.GenericChart> charts)
+        {
+            string title = "";
+
+            if (charts.Any(t =>
+                                { 
+                                    if (t.IsChart)
+                                        {
+                                            var chart = (GenericChart.GenericChart.Chart)t;
+
+                                            return chart.Item1.type == "candlestick";
+                                        }
+                                        else
+                                            return false;
+                                })
+                )
+                title += "OHLC";
+
+            if (charts.Any(t =>
+            {
+                if (t.IsChart)
+                {
+                    var chart = (GenericChart.GenericChart.Chart)t;
+
+                    return chart.Item1.TryGetTypedValue<string>("name").Value == "Volume";
+                }
+                else
+                    return false;
+            })
+                )
+                title += "V";
+
+            return title;
+        }
+
+        private static OhlcData GetOhlcData(this Frame<DateTime, string> dataFrame)
+        {
+            IBar bar;
+            if (!dataFrame.ColumnKeys.Contains(nameof(bar.Open)) ||
+                    !dataFrame.ColumnKeys.Contains(nameof(bar.High)) ||
+                    !dataFrame.ColumnKeys.Contains(nameof(bar.Low)) ||
+                    !dataFrame.ColumnKeys.Contains(nameof(bar.Close))
+                    )
+            {
+                return null;
+            }
+
+            var data = new OhlcData
+            (
+                x: dataFrame.RowIndex.KeySequence,
+                open: GetDecimalValues(dataFrame.Columns[nameof(bar.Open)].Values),
+                high: GetDecimalValues(dataFrame.Columns[nameof(bar.High)].Values),
+                low: GetDecimalValues(dataFrame.Columns[nameof(bar.Low)].Values),
+                close: GetDecimalValues(dataFrame.Columns[nameof(bar.Close)].Values)
+            );
+
+            return data;
+        }
+
+        private static GenericChart.GenericChart AddOhlcChart(this Frame<DateTime, string> dataFrame)
+        {
+            
             if (dataFrame is null)
             {
                 throw new ArgumentNullException(nameof(dataFrame));
             }
 
-            IBar bar;
-            IEnumerable<Tuple<DateTime, decimal, decimal, decimal, decimal>> chartData = dataFrame.Rows.Observations.Select(indexToRow => new Tuple<DateTime, decimal, decimal, decimal, decimal>(
-            indexToRow.Key,
-            (decimal)indexToRow.Value[nameof(bar.Open)],
-            (decimal)indexToRow.Value[nameof(bar.High)],
-            (decimal)indexToRow.Value[nameof(bar.Low)],
-            (decimal)indexToRow.Value[nameof(bar.Close)]
-            ));
+            var data = dataFrame.GetOhlcData();
 
-            var chart = XChart.Candlestick(chartData);
-            chart.WithLayout(new Layout.Layout
-            {
-                title = "OHLC",
-                xaxis = new Xaxis
-                {
-                    title = "Date"
-                },
-                yaxis = new Yaxis
-                {
-                    title = "Price (USD)"
-                }
-            });
+            if (data is null)
+                return null;
+
+            var rangeslider = RangeSlider.init<DateTime, decimal>(
+                BgColor: null,
+                BorderColor: null,
+                BorderWidth: null,
+                AutoRange: null,
+                Range: null,
+                Thickness: null,
+                Visible: false,
+                YAxisRangeMode: null,
+                YAxisRange: null);
+
+            var chart = XChart.Candlestick
+            (
+                x: data.X,
+                open: data.Open,
+                high: data.High,
+                low: data.Low,
+                close: data.Close
+            )
+            .WithTraceName("OHLC")
+            .WithLegend(true)
+            .WithX_AxisRangeSlider(rangeslider)
+            .WithAxisAnchor(Y: 1);
+
             return chart;
         }
 
-        public static PlotlyChart ToVolumeChart(this Frame<DateTime, string> dataFrame)
+        private static GenericChart.GenericChart AddVolumeChart(this Frame<DateTime, string> dataFrame)
         {
             TradeBar bar;
             if (dataFrame is null)
@@ -176,35 +363,220 @@ namespace QuantConnect.Research
                 return null;
             }
 
-            IEnumerable<Tuple<DateTime, decimal>> chartData = dataFrame.Rows.Observations.Select(indexToRow => new Tuple<DateTime, decimal>(
-            indexToRow.Key,
-            (decimal)indexToRow.Value[nameof(bar.Volume)]
-            ));
+            var marker = new Marker();
+            marker.SetValue("color", "rgb(7, 89, 148)");
 
-            var barTrace = new Graph.Bar()
+            var barTrace = XChart.Column<DateTime, decimal, string>
+            (
+                keys: dataFrame.RowIndex.KeySequence,
+
+                values: GetDecimalValues(dataFrame.Columns[nameof(bar.Volume)].Values),
+
+                Opacity: 0.5d,
+
+                Name: "Volume",
+
+                Marker: marker
+
+            ).WithAxisAnchor(Y: 2);
+
+            return barTrace;
+        }
+
+        private static GenericChart.GenericChart AddIndicatorToChart(this Frame<DateTime, string> dataFrame, string name, SeriesType type, bool isPriceRelated, string color = null, StyleParam.Symbol? symbol = null)
+        {
+            var columnNames = dataFrame.Columns.Keys.Select(x => x.ToUpperInvariant());
+
+            if (!columnNames.Contains(name.ToUpperInvariant()))
+                throw new ArgumentException($"{name} is not a column name in your dataframe.");
+
+            //drop rows that are empty
+            dataFrame = dataFrame.DropSparseRows();
+
+            var ohlcData = dataFrame.GetOhlcData();
+
+            if (ohlcData is null)
+                throw new ArgumentException($"No OHLC data found in dataframe.");
+
+            var labels = new FSharpOption<IEnumerable<decimal>>(GetDecimalValues(dataFrame.Columns[name].Values));
+
+            GenericChart.GenericChart trace;
+            switch (type)
             {
-                x = dataFrame.RowIndex.KeySequence,
+                case SeriesType.Line:
+                    trace = XChart.Line
+                    (
+                        Name: name,
 
-                y = dataFrame.Columns[nameof(bar.Volume)].Values,
+                        x: ohlcData.X,
 
-                //marker = new Graph.Marker { color = "rgb(0, 0, 109)" }
-                
-            };
+                        y: ohlcData.Close,
 
-            var chart = XChart.Plot(barTrace);
-            chart.WithLayout(new Layout.Layout
+                        Labels: labels,
+
+                        MarkerSymbol: symbol,
+
+                        Color: color
+                    );
+                    break;
+                case SeriesType.Scatter:
+                case SeriesType.Candle: //candles already exist
+                case SeriesType.Flag:
+                    trace = XChart.Point
+                    (
+                        Name: name,
+
+                        x: ohlcData.X,
+
+                        y: ohlcData.Close,
+
+                        Labels: labels,
+
+                        Opacity: 0.5d,
+
+                        MarkerSymbol: symbol,
+
+                        Color: color
+                    );
+                    break;
+                case SeriesType.Bar:
+                    trace = XChart.Bar
+                    (
+                        Name: name,
+
+                        keys: ohlcData.X,
+
+                        values: labels.Value,
+
+                        Opacity: 0.5d,
+
+                        Labels: labels
+                    );
+                    break;
+                case SeriesType.StackedArea:
+                    trace = XChart.StackedArea
+                    (
+                        Name: name,
+
+                        x: ohlcData.X,
+
+                        y: labels.Value,
+
+                        Opacity: 0.5d,
+
+                        Labels: labels
+                    );
+                    break;
+                //case SeriesType.Pie:
+                 //   break;
+                //case SeriesType.Treemap:
+                    //trace = XChart.Treemap
+                    //(
+                    //    Name: name,
+
+                    //    x: ohlcData.X,
+
+                    //    y: labels.Value,
+
+                    //    Opacity: 0.5d,
+
+                    //    Labels: labels
+                    //);
+                    //break;
+                default:
+                    throw new NotSupportedException($"{type} is not a supported chart.");
+            }
+            
+            if(isPriceRelated)
+                trace.WithAxisAnchor(Y: 1);
+            else
+                trace.WithAxisAnchor(Y: 2);
+
+            return trace;
+        }
+
+        private static List<GenericChart.GenericChart> AddIndicatorsToChart(this Frame<DateTime, string> dataFrame, GenericChart.GenericChart candlestick)
+        {
+            if (dataFrame is null)
             {
-                title = "Volume",
-                xaxis = new Xaxis
+                throw new ArgumentNullException(nameof(dataFrame));
+            }
+            else if (candlestick is null)
+            {
+                throw new ArgumentNullException(nameof(candlestick));
+            }
+
+            List<GenericChart.GenericChart> traces = new List<GenericChart.GenericChart>();
+
+            if (candlestick is GenericChart.GenericChart.Chart chart)
+            {
+                var closes = chart.Item1.TryGetTypedValue<IEnumerable<decimal>>("close").Value;
+
+                var min_threshold = closes.Min();
+                var max_threshold = closes.Max();
+
+                min_threshold = min_threshold * 0.8m;
+                max_threshold = max_threshold * 1.2m;
+
+                foreach (var nameToValues in dataFrame.Columns.Observations)
                 {
-                    title = "Date"
-                },
-                yaxis = new Yaxis
-                {
-                    title = "Volume"
-                },
-            });
-            return chart;
+                    //skip candlestick data
+                    if (IgnoredProperties.Contains(nameToValues.Key.ToUpperInvariant()))
+                        continue;
+
+                    var firstValue = nameToValues.Value.Values.First();
+
+                    if (firstValue is decimal value)
+                    {
+                        bool isPriceRelated = false;
+                        if (value > min_threshold && value < max_threshold)
+                            isPriceRelated = true;
+
+                        GenericChart.GenericChart trace;
+                        if (isPriceRelated)
+                        {
+                            //price axis
+                            trace = XChart.Line
+                            (
+                                Name: nameToValues.Key,
+
+                                x: dataFrame.RowIndex.KeySequence,
+
+                                y: closes,
+
+                                Labels: new FSharpOption<IEnumerable<decimal>>(GetDecimalValues(nameToValues.Value.Values))
+                            ).WithAxisAnchor(Y: 1);
+                        }
+                        else
+                            continue;
+                        //{
+                        //    trace = XChart.Point
+                        //    (
+                        //        Name: nameToValues.Key,
+
+                        //        x: dataFrame.RowIndex.KeySequence,
+
+                        //        y: closes,
+
+                        //        Labels: new FSharpOption<IEnumerable<decimal>>(GetDecimalValues(nameToValues.Value.Values))
+                        //    ).WithAxisAnchor(Y: 2);
+                        //}
+
+                        traces.Add(trace);
+                    }
+
+                }
+            }
+
+            return traces;
+        }
+
+        private static IEnumerable<decimal> GetDecimalValues(object traceProperty)
+        {
+            if (traceProperty is IEnumerable<object> values)
+                return values.Select(x => (decimal)x);
+            else
+                return null;
         }
     }
 }
