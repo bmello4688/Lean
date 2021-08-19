@@ -111,8 +111,8 @@ namespace QuantConnect.Research.Interactive
                 headers.Add(th(i("DateTime(Index)")));
                 headers.AddRange(df.Columns.Observations.Select(kvp => (IHtmlContent)th(kvp.Key)));
                 var rows = new List<List<IHtmlContent>>();
-                var take = 20;
-                for (var i = 0; i < Math.Min(take, df.RowCount); i++)
+
+                for (var i = 0; i < df.RowCount; i++)
                 {
                     var cells = new List<IHtmlContent>();
                     cells.Add(td(df.RowIndex.Keys[i]));
