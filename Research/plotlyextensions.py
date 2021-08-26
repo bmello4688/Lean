@@ -42,7 +42,7 @@ def __single_symbol_plot(df: pd.DataFrame, pre_title_text):
         else:
             title+="V"
 
-    fig.update_layout(title=f'{pre_title_text} {title}', title_x=0.5)
+    fig.update_layout(title=f'{pre_title_text}{title}', title_x=0.5)
     fig.update_layout(plot_bgcolor='rgb(255, 255, 255)')
     fig.update_layout(yaxis={
           "tickcolor": "rgba(0,0,0,0.75)",
@@ -91,7 +91,7 @@ def plot(df: pd.DataFrame, pre_title_text: str = ''):
         #create chart per symbol
         for symbolAndFreq in unique_symbols:
             symbol = symbolAndFreq.split()[0]
-            fig = __single_symbol_plot(df.loc[symbolAndFreq], f'{pre_title_text}{symbol}')
+            fig = __single_symbol_plot(df.loc[symbolAndFreq], f'{pre_title_text}{symbol} ')
             children.append(go.FigureWidget(fig))
 
         dashboard = widgets.VBox(children)

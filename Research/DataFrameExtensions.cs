@@ -115,39 +115,17 @@ namespace QuantConnect.Research
             return Frame.FromRows(timetoSeries.ToList().Select(kvp => KeyValuePair.Create(kvp.Key, kvp.Value.ToSeries())));
         }
 
-        private class OhlcData
-        {
-            public IEnumerable<DateTime> X { get; }
-
-            public IEnumerable<decimal> Open { get; }
-
-            public IEnumerable<decimal> High { get; }
-
-            public IEnumerable<decimal> Low { get; }
-
-            public IEnumerable<decimal> Close { get; }
-
-            public OhlcData(IEnumerable<DateTime> x, IEnumerable<decimal> open, IEnumerable<decimal> high, IEnumerable<decimal> low, IEnumerable<decimal> close)
-            {
-                X = x;
-                Open = open;
-                High = high;
-                Low = low;
-                Close = close;
-            }
-        }
-
-        public static GenericChart.GenericChart Plot(this object dataFrame, params Series[] seriesArray)
+        public static GenericChart.GenericChart Plot(object dataFrame, string preTitleText = "", params Series[] seriesArray)
         {
             if (dataFrame is Frame<DateTime, string> frame)
             {
-                return Plot(frame, seriesArray);
+                return Plot(frame, preTitleText, seriesArray);
             }
             else
                 return null;
         }
 
-        public static GenericChart.GenericChart Plot(this Frame<DateTime, string> dataFrame, params Series[] seriesArray)
+        public static GenericChart.GenericChart Plot(Frame<DateTime, string> dataFrame, string preTitleText = "", params Series[] seriesArray)
         {
             var charts = new List<GenericChart.GenericChart>();
 
@@ -161,7 +139,7 @@ namespace QuantConnect.Research
             if (volume != null)
                 charts.Add(volume);
 
-            if (ohlc != null)
+            if (ohlc != null && seriesArray != null)
             {
                 foreach (var series in seriesArray)
                 {
@@ -176,10 +154,75 @@ namespace QuantConnect.Research
                 }
             }
 
-            var chart = GenericChart.combine(charts)
-                .WithLayout(Layout.init<string, string, string, string, string, string, string>
+            var chart = GenericChart.combine(charts).Style($"{preTitleText}{GetTitle(charts)}");
+                
+            return chart;
+        }
+
+        public static IEnumerable<GenericChart.GenericChart> AddToPlot(IEnumerable<GenericChart.GenericChart> plots, GenericChart.GenericChart newChartComponent, string specificGraphIdentifierByTitle = null)
+        {
+            if (plots?.Any() ?? true)
+                throw new ArgumentException("plots are empty");
+
+            var traceAdded = false;
+            var titles = new List<string>();
+
+            var enumerator = plots.GetEnumerator();
+
+            while(enumerator.MoveNext())
+            {
+                var plot = enumerator.Current;
+                var layout = GetPlotLayout(plot);
+                var title = layout.TryGetTypedValue<string>("title");
+                titles.Add(title.Value);
+
+                if (title.Value.Contains(specificGraphIdentifierByTitle, StringComparison.InvariantCultureIgnoreCase) ||
+                    plots.Count() == 1)
+                {
+                    plot = AddToPlot(plot, newChartComponent);
+                    traceAdded = true;
+                    break;
+                }
+            }
+
+            if (!traceAdded)
+                throw new ArgumentException($"specific_graph_identifier_by_title={specificGraphIdentifierByTitle} was not in any graph title. Options are {titles}");
+
+            return plots;
+        }
+
+        public static GenericChart.GenericChart AddToPlot(GenericChart.GenericChart plot, GenericChart.GenericChart newChartComponent)
+        {
+            var layout = GetPlotLayout(plot);
+            return GenericChart.combine(new GenericChart.GenericChart[] { plot, newChartComponent }).WithLayout(layout);
+        }
+
+        private static StyleParam.Symbol? ConvertScatterMarkerSymbolToPlotly(ScatterMarkerSymbol scatterMarkerSymbol)
+        {
+            switch (scatterMarkerSymbol)
+            {
+                case ScatterMarkerSymbol.None:
+                    return null;
+                case ScatterMarkerSymbol.Circle:
+                    return StyleParam.Symbol.Circle;
+                case ScatterMarkerSymbol.Square:
+                    return StyleParam.Symbol.Square;
+                case ScatterMarkerSymbol.Diamond:
+                    return StyleParam.Symbol.Diamond;
+                case ScatterMarkerSymbol.Triangle:
+                    return StyleParam.Symbol.TriangleUp;
+                case ScatterMarkerSymbol.TriangleDown:
+                    return StyleParam.Symbol.TriangleDown;
+                default:
+                    return StyleParam.Symbol.Circle;
+            }
+        }
+
+        private static GenericChart.GenericChart Style(this GenericChart.GenericChart chart, string title)
+        {
+            return chart.WithLayout(Layout.init<string, string, string, string, string, string, string>
             (
-                Title: GetTitle(charts),
+                Title: title,
                 Titlefont: null,
                 Font: null,
                 Showlegend: null,
@@ -227,29 +270,16 @@ namespace QuantConnect.Research
                 .WithX_AxisStyle("Date")
                 .WithY_AxisStyle("Price", Side: StyleParam.Side.Left, Id: 1)
                 .WithY_AxisStyle("Unit", Overlaying: StyleParam.AxisAnchorId.NewY(1), Side: StyleParam.Side.Right, Id: 2);
-
-            return chart;
         }
 
-        private static StyleParam.Symbol? ConvertScatterMarkerSymbolToPlotly(ScatterMarkerSymbol scatterMarkerSymbol)
+        private static Layout GetPlotLayout(GenericChart.GenericChart plot)
         {
-            switch (scatterMarkerSymbol)
-            {
-                case ScatterMarkerSymbol.None:
-                    return null;
-                case ScatterMarkerSymbol.Circle:
-                    return StyleParam.Symbol.Circle;
-                case ScatterMarkerSymbol.Square:
-                    return StyleParam.Symbol.Square;
-                case ScatterMarkerSymbol.Diamond:
-                    return StyleParam.Symbol.Diamond;
-                case ScatterMarkerSymbol.Triangle:
-                    return StyleParam.Symbol.TriangleUp;
-                case ScatterMarkerSymbol.TriangleDown:
-                    return StyleParam.Symbol.TriangleDown;
-                default:
-                    return StyleParam.Symbol.Circle;
-            }
+            if (plot is GenericChart.GenericChart.Chart chart)
+                return chart.Item2;
+            else if (plot is GenericChart.GenericChart.MultiChart mchart)
+                return mchart.Item2;
+            else
+                return null;
         }
 
         private static string GetTitle(List<GenericChart.GenericChart> charts)
@@ -287,7 +317,29 @@ namespace QuantConnect.Research
             return title;
         }
 
-        private static OhlcData GetOhlcData(this Frame<DateTime, string> dataFrame)
+        private class OhlcData
+        {
+            public IEnumerable<DateTime> X { get; }
+
+            public IEnumerable<decimal> Open { get; }
+
+            public IEnumerable<decimal> High { get; }
+
+            public IEnumerable<decimal> Low { get; }
+
+            public IEnumerable<decimal> Close { get; }
+
+            public OhlcData(IEnumerable<DateTime> x, IEnumerable<decimal> open, IEnumerable<decimal> high, IEnumerable<decimal> low, IEnumerable<decimal> close)
+            {
+                X = x;
+                Open = open;
+                High = high;
+                Low = low;
+                Close = close;
+            }
+        }
+
+        private static OhlcData GetOhlcData(Frame<DateTime, string> dataFrame)
         {
             IBar bar;
             if (!dataFrame.ColumnKeys.Contains(nameof(bar.Open)) ||
@@ -311,7 +363,7 @@ namespace QuantConnect.Research
             return data;
         }
 
-        private static GenericChart.GenericChart AddOhlcChart(this Frame<DateTime, string> dataFrame)
+        private static GenericChart.GenericChart AddOhlcChart(Frame<DateTime, string> dataFrame)
         {
             
             if (dataFrame is null)
@@ -319,7 +371,7 @@ namespace QuantConnect.Research
                 throw new ArgumentNullException(nameof(dataFrame));
             }
 
-            var data = dataFrame.GetOhlcData();
+            var data = GetOhlcData(dataFrame);
 
             if (data is null)
                 return null;
@@ -351,7 +403,7 @@ namespace QuantConnect.Research
             return chart;
         }
 
-        private static GenericChart.GenericChart AddVolumeChart(this Frame<DateTime, string> dataFrame)
+        private static GenericChart.GenericChart AddVolumeChart(Frame<DateTime, string> dataFrame)
         {
             TradeBar bar;
             if (dataFrame is null)
@@ -383,7 +435,7 @@ namespace QuantConnect.Research
             return barTrace;
         }
 
-        private static GenericChart.GenericChart AddIndicatorToChart(this Frame<DateTime, string> dataFrame, string name, SeriesType type, bool isPriceRelated, string color = null, StyleParam.Symbol? symbol = null)
+        private static GenericChart.GenericChart AddIndicatorToChart(Frame<DateTime, string> dataFrame, string name, SeriesType type, bool isPriceRelated, string color = null, StyleParam.Symbol? symbol = null)
         {
             var columnNames = dataFrame.Columns.Keys.Select(x => x.ToUpperInvariant());
 
@@ -393,7 +445,7 @@ namespace QuantConnect.Research
             //drop rows that are empty
             dataFrame = dataFrame.DropSparseRows();
 
-            var ohlcData = dataFrame.GetOhlcData();
+            var ohlcData = GetOhlcData(dataFrame);
 
             if (ohlcData is null)
                 throw new ArgumentException($"No OHLC data found in dataframe.");
@@ -495,7 +547,7 @@ namespace QuantConnect.Research
             return trace;
         }
 
-        private static List<GenericChart.GenericChart> AddIndicatorsToChart(this Frame<DateTime, string> dataFrame, GenericChart.GenericChart candlestick)
+        private static List<GenericChart.GenericChart> AddIndicatorsToChart(Frame<DateTime, string> dataFrame, GenericChart.GenericChart candlestick)
         {
             if (dataFrame is null)
             {
