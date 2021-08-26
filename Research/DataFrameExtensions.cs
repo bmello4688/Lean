@@ -137,17 +137,17 @@ namespace QuantConnect.Research
             }
         }
 
-        public static GenericChart.GenericChart ToChart(this object dataFrame, params Series[] seriesArray)
+        public static GenericChart.GenericChart Plot(this object dataFrame, params Series[] seriesArray)
         {
             if (dataFrame is Frame<DateTime, string> frame)
             {
-                return ToChart(frame, seriesArray);
+                return Plot(frame, seriesArray);
             }
             else
                 return null;
         }
 
-        public static GenericChart.GenericChart ToChart(this Frame<DateTime, string> dataFrame, params Series[] seriesArray)
+        public static GenericChart.GenericChart Plot(this Frame<DateTime, string> dataFrame, params Series[] seriesArray)
         {
             var charts = new List<GenericChart.GenericChart>();
 

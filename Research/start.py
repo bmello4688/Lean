@@ -36,3 +36,5 @@ api.Initialize(Config.GetInt("job-user-id", 1),
     Config.Get("data-folder"))
 
 get_ipython().run_line_magic('matplotlib', 'inline')
+
+from plotlyextensions import *
