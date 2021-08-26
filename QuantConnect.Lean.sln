@@ -58,7 +58,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuantConnect.Optimizer", "O
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuantConnect.Optimizer.Launcher", "Optimizer.Launcher\QuantConnect.Optimizer.Launcher.csproj", "{D46D2A8D-340C-4B40-8EE6-6BAA7B1198AB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuantConnect.Research.Interactive", "QuantConnect.Research.Interactive\QuantConnect.Research.Interactive.csproj", "{02371BD7-DA6F-404E-85E4-CE78C53E920D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuantConnect.Research.Interactive", "Research\QuantConnect.Research.Interactive\QuantConnect.Research.Interactive.csproj", "{02371BD7-DA6F-404E-85E4-CE78C53E920D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
