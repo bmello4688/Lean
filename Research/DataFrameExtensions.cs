@@ -1,20 +1,16 @@
 using Deedle;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
-using QuantConnect.Python;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Plotly.NET;
-using XChart = Plotly.NET.Chart;
-using Graph = Plotly.NET;
 using Frame = Deedle.Frame;
 using QuantConnect.Indicators;
-using Microsoft.FSharp.Collections;
 using Microsoft.FSharp.Core;
-using static Plotly.NET.Colors;
+using Plotly.NET;
+using Chart2D = Plotly.NET.Chart2D.Chart;
+using Plotly.NET.TraceObjects;
+using Plotly.NET.LayoutObjects;
 
 namespace QuantConnect.Research
 {
@@ -144,7 +140,7 @@ namespace QuantConnect.Research
                 foreach (var series in seriesArray)
                 {
                     string color = series.Color == System.Drawing.Color.Empty ? null : $"rgb({series.Color.R}, {series.Color.G}, {series.Color.B})";
-                    StyleParam.Symbol? symbol = ConvertScatterMarkerSymbolToPlotly(series.ScatterMarkerSymbol);
+                    StyleParam.MarkerSymbol symbol = ConvertScatterMarkerSymbolToPlotly(series.ScatterMarkerSymbol);
                     var indicator = AddIndicatorToChart(dataFrame, series.Name, series.SeriesType, series.Unit == "$", color, symbol);
 
                     if (indicator != null)
@@ -197,38 +193,35 @@ namespace QuantConnect.Research
             return GenericChart.combine(new GenericChart.GenericChart[] { plot, newChartComponent }).WithLayout(layout);
         }
 
-        private static StyleParam.Symbol? ConvertScatterMarkerSymbolToPlotly(ScatterMarkerSymbol scatterMarkerSymbol)
+        private static StyleParam.MarkerSymbol? ConvertScatterMarkerSymbolToPlotly(ScatterMarkerSymbol scatterMarkerSymbol)
         {
             switch (scatterMarkerSymbol)
             {
                 case ScatterMarkerSymbol.None:
                     return null;
                 case ScatterMarkerSymbol.Circle:
-                    return StyleParam.Symbol.Circle;
+                    return StyleParam.MarkerSymbol.Circle;
                 case ScatterMarkerSymbol.Square:
-                    return StyleParam.Symbol.Square;
+                    return StyleParam.MarkerSymbol.Square;
                 case ScatterMarkerSymbol.Diamond:
-                    return StyleParam.Symbol.Diamond;
+                    return StyleParam.MarkerSymbol.Diamond;
                 case ScatterMarkerSymbol.Triangle:
-                    return StyleParam.Symbol.TriangleUp;
+                    return StyleParam.MarkerSymbol.TriangleUp;
                 case ScatterMarkerSymbol.TriangleDown:
-                    return StyleParam.Symbol.TriangleDown;
+                    return StyleParam.MarkerSymbol.TriangleDown;
                 default:
-                    return StyleParam.Symbol.Circle;
+                    return StyleParam.MarkerSymbol.Circle;
             }
         }
 
         private static GenericChart.GenericChart Style(this GenericChart.GenericChart chart, string title)
         {
-            return chart.WithLayout(Layout.init<string, string, string, string, string, string, string>
+            return chart.WithLayout(Layout.init<string>
             (
-                Title: title,
-                Titlefont: null,
+                Title: Title.init(title),
                 Font: null,
-                Showlegend: null,
-                Autosize: true,
-                Width: null,
-                Height: null,
+                ShowLegend: null,
+                AutoSize: true,
                 Legend: Legend.init
                 (
                     BGColor: null,
@@ -250,26 +243,14 @@ namespace QuantConnect.Research
                 ),
                 Annotations: null,
                 Margin: null,
-                Paper_bgcolor: null,
-                Plot_bgcolor: null,
-                Hovermode: null,
-                Dragmode: StyleParam.Dragmode.Zoom,
-                Separators: null,
-                Barmode: null,
-                Bargap: null,
-                Radialaxis: null,
-                Angularaxis: null,
-                Scene: null,
-                Direction: null,
-                Orientation: null,
-                Shapes: null,
-                Hidesources: null,
-                Smith: null,
-                Geo: null
+                PaperBGColor: null,
+                PlotBGColor: null,
+                HoverMode: null,
+                DragMode: StyleParam.DragMode.Zoom
             ))
-                .WithX_AxisStyle("Date")
-                .WithY_AxisStyle("Price", Side: StyleParam.Side.Left, Id: 1)
-                .WithY_AxisStyle("Unit", Overlaying: StyleParam.AxisAnchorId.NewY(1), Side: StyleParam.Side.Right, Id: 2);
+                .WithXAxisStyle(Title.init("Date"))
+                .WithYAxisStyle(Title.init("Price"), Side: StyleParam.Side.Left, Id: StyleParam.SubPlotId.NewYAxis(1))
+                .WithYAxisStyle(Title.init("Unit"), Overlaying: StyleParam.LinearAxisId.NewY(1), Side: StyleParam.Side.Right, Id: StyleParam.SubPlotId.NewYAxis(2));
         }
 
         private static Layout GetPlotLayout(GenericChart.GenericChart plot)
@@ -387,7 +368,7 @@ namespace QuantConnect.Research
                 YAxisRangeMode: null,
                 YAxisRange: null);
 
-            var chart = XChart.Candlestick
+            var chart = Chart2D.Candlestick
             (
                 x: data.X,
                 open: data.Open,
@@ -397,7 +378,7 @@ namespace QuantConnect.Research
             )
             .WithTraceName("OHLC")
             .WithLegend(true)
-            .WithX_AxisRangeSlider(rangeslider)
+            .WithXAxisRangeSlider(rangeslider)
             .WithAxisAnchor(Y: 1);
 
             return chart;
@@ -418,9 +399,9 @@ namespace QuantConnect.Research
             var marker = new Marker();
             marker.SetValue("color", "rgb(7, 89, 148)");
 
-            var barTrace = XChart.Column<DateTime, decimal, string>
+            var barTrace = Chart2D.Column<decimal, DateTime, int, int, string>
             (
-                keys: dataFrame.RowIndex.KeySequence,
+                Keys: new FSharpOption<IEnumerable<DateTime>>(dataFrame.RowIndex.KeySequence),
 
                 values: GetDecimalValues(dataFrame.Columns[nameof(bar.Volume)].Values),
 
@@ -435,7 +416,7 @@ namespace QuantConnect.Research
             return barTrace;
         }
 
-        private static GenericChart.GenericChart AddIndicatorToChart(Frame<DateTime, string> dataFrame, string name, SeriesType type, bool isPriceRelated, string color = null, StyleParam.Symbol? symbol = null)
+        private static GenericChart.GenericChart AddIndicatorToChart(Frame<DateTime, string> dataFrame, string name, SeriesType type, bool isPriceRelated, string color = null, StyleParam.MarkerSymbol? symbol = null)
         {
             var columnNames = dataFrame.Columns.Keys.Select(x => x.ToUpperInvariant());
 
@@ -456,7 +437,7 @@ namespace QuantConnect.Research
             switch (type)
             {
                 case SeriesType.Line:
-                    trace = XChart.Line
+                    trace = Chart2D.Line
                     (
                         Name: name,
 
@@ -468,13 +449,13 @@ namespace QuantConnect.Research
 
                         MarkerSymbol: symbol,
 
-                        Color: color
+                        Color: new FSharpOption<Color>(Color.fromString(color))
                     );
                     break;
                 case SeriesType.Scatter:
                 case SeriesType.Candle: //candles already exist
                 case SeriesType.Flag:
-                    trace = XChart.Point
+                    trace = Chart2D.Point
                     (
                         Name: name,
 
@@ -488,25 +469,23 @@ namespace QuantConnect.Research
 
                         MarkerSymbol: symbol,
 
-                        Color: color
+                        Color: new FSharpOption<Color>(Color.fromString(color))
                     );
                     break;
                 case SeriesType.Bar:
-                    trace = XChart.Bar
+                    trace = Chart2D.Column<decimal, DateTime, int, int, string>
                     (
                         Name: name,
 
-                        keys: ohlcData.X,
+                        Keys: new FSharpOption<IEnumerable<DateTime>>(ohlcData.X),
 
                         values: labels.Value,
 
-                        Opacity: 0.5d,
-
-                        Labels: labels
+                        Opacity: 0.5d
                     );
                     break;
                 case SeriesType.StackedArea:
-                    trace = XChart.StackedArea
+                    trace = Chart2D.StackedArea
                     (
                         Name: name,
 
@@ -588,7 +567,7 @@ namespace QuantConnect.Research
                         if (isPriceRelated)
                         {
                             //price axis
-                            trace = XChart.Line
+                            trace = Chart2D.Line
                             (
                                 Name: nameToValues.Key,
 
