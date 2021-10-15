@@ -33,7 +33,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Deedle" Version="2.1.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="Plotly.NET" Version="2.0.0-preview.10" />
     <PackageReference Include="QuantConnect.pythonnet" Version="2.0.8" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="5.0.3">

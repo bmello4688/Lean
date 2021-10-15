@@ -7,11 +7,11 @@
 
   <ItemGroup>
     <PackageReference Include="Deedle" Version="2.1.0" />
-    <PackageReference Include="Microsoft.DotNet.Interactive" Version="1.0.0-beta.21404.3" />
-    <PackageReference Include="Microsoft.DotNet.Interactive.CSharp" Version="1.0.0-beta.21404.3" />
-    <PackageReference Include="Microsoft.DotNet.Interactive.Formatting" Version="1.0.0-beta.21404.3" />
-    <PackageReference Include="Microsoft.DotNet.Interactive.ExtensionLab" Version="1.0.0-beta.21404.3" />
-    <PackageReference Include="Plotly.NET.Interactive" Version="2.0.0-preview.7" />
+    <PackageReference Include="Microsoft.DotNet.Interactive" Version="1.0.0-beta.21506.4" />
+    <PackageReference Include="Microsoft.DotNet.Interactive.CSharp" Version="1.0.0-beta.21506.4" />
+    <PackageReference Include="Microsoft.DotNet.Interactive.Formatting" Version="1.0.0-beta.21506.4" />
+    <PackageReference Include="Microsoft.DotNet.Interactive.ExtensionLab" Version="1.0.0-beta.21506.4" />
+    <PackageReference Include="Plotly.NET.Interactive" Version="2.0.0-preview.10" />
   </ItemGroup>
 
   <ItemGroup>
