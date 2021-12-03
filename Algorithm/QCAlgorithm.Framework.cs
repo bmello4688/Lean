@@ -1,4 +1,4 @@
-﻿/*
+/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  *
@@ -458,7 +458,7 @@ namespace QuantConnect.Algorithm
         /// </summary>
         /// <param name="insight">The <see cref="Insight"/> to set the values for</param>
         /// <returns>The same <see cref="Insight"/> instance with the values set</returns>
-        private Insight InitializeInsightFields(Insight insight)
+        protected Insight InitializeInsightFields(Insight insight)
         {
             insight.GeneratedTimeUtc = UtcTime;
             insight.ReferenceValue = _securityValuesProvider.GetValues(insight.Symbol).Get(insight.Type);

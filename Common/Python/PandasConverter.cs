@@ -1,4 +1,4 @@
-﻿/*
+/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  *
@@ -143,10 +143,65 @@ namespace QuantConnect.Python
                         index.Add(item.EndTime);
                         values.Add((double)item.Value);
                     }
+
                     pyDict.SetItem(kvp.Key.ToLowerInvariant(), _pandas.Series(values, index));
                 }
 
                 return _pandas.DataFrame(pyDict, columns: data.Keys.Select(x => x.ToLowerInvariant()).OrderBy(x => x));
+            }
+        }
+
+        /// <summary>
+        /// Converts a dictionary with a list of <see cref="IndicatorDataPoint"/> in a pandas.DataFrame
+        /// </summary>
+        /// <param name="data">Dictionary with a list of <see cref="IndicatorDataPoint"/></param>
+        /// <returns><see cref="PyObject"/> containing a pandas.DataFrame</returns>
+        public PyObject GetIndicatorDataFrameWithSymbol(Symbol symbol, IDictionary<string, List<IndicatorDataPoint>> data)
+        {
+            var indexNames = $"{nameof(Symbol).ToLowerInvariant()},time".Split(',');
+
+            using (Py.GIL())
+            {
+                var pyDict = new PyDict();
+
+                foreach (var kvp in data)
+                {
+                    var index = new List<(string, DateTime)>();
+                    var values = new List<double>();
+
+                    foreach (var item in kvp.Value)
+                    {
+                        index.Add((symbol.ID.ToString(), item.EndTime));
+                        values.Add((double)item.Value);
+                    }
+
+                    var pyIndex = index.Select(tuple => new PyTuple(new[] { tuple.Item1.ToPython(), tuple.Item2.ToPython() })).ToArray();
+
+                    var multiIndex = _pandas.MultiIndex.from_tuples(pyIndex, names: indexNames);
+
+                    pyDict.SetItem(kvp.Key.ToLowerInvariant(), _pandas.Series(values, multiIndex));
+                    
+                }
+
+                return _pandas.DataFrame(pyDict, columns: data.Keys.Select(x => x.ToLowerInvariant()).OrderBy(x => x));
+            }
+        }
+
+        /// <summary>
+        /// Concats dataframes
+        /// </summary>
+        /// <param name="dataFrames"></param>
+        /// <returns></returns>
+        public PyObject Concat(IEnumerable<PyObject> dataFrames)
+        {
+            using (Py.GIL())
+            {
+                if (!dataFrames.Any())
+                {
+                    return _pandas.DataFrame();
+                }
+
+                return _pandas.concat(dataFrames.ToArray(), Py.kw("sort", true));
             }
         }
 

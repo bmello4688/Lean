@@ -38,13 +38,14 @@ using QuantConnect.Packets;
 using QuantConnect.Lean.Engine.DataFeeds.Enumerators.Factories;
 using System.Threading.Tasks;
 using Deedle;
+using MelloQuantFund.Alphas;
 
 namespace QuantConnect.Research
 {
     /// <summary>
     /// Provides access to data for quantitative analysis
     /// </summary>
-    public class QuantBook : QCAlgorithm
+    public partial class QuantBook : QCAlgorithm
     {
         private dynamic _pandas;
         private IDataCacheProvider _dataCacheProvider;

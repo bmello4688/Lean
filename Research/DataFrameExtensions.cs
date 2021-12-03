@@ -11,6 +11,7 @@ using Plotly.NET;
 using Chart2D = Plotly.NET.Chart2D.Chart;
 using Plotly.NET.TraceObjects;
 using Plotly.NET.LayoutObjects;
+using QuantConnect.Util;
 
 namespace QuantConnect.Research
 {
@@ -85,7 +86,7 @@ namespace QuantConnect.Research
 
         public static Frame<DateTime, string> ToDataFrame(this Dictionary<string, List<IndicatorDataPoint>> data)
         {
-            Dictionary<DateTime, Dictionary<string, object>> timetoSeries = new Dictionary<DateTime, Dictionary<string, object>>();
+            Dictionary<DateTime, Dictionary<string, object>> timetoSeries = new();
             foreach (var kvp in data)
             {
                 foreach (var item in kvp.Value)
@@ -109,6 +110,47 @@ namespace QuantConnect.Research
             }
 
             return Frame.FromRows(timetoSeries.ToList().Select(kvp => KeyValuePair.Create(kvp.Key, kvp.Value.ToSeries())));
+        }
+
+        public static Frame<(SecurityIdentifier, DateTime), string> ToDataFrame(this Dictionary<string, List<IndicatorDataPoint>> data, Symbol symbol)
+        {
+            Dictionary<(SecurityIdentifier, DateTime), Dictionary<string, object>> timetoSeries = new();
+            foreach (var kvp in data)
+            {
+                foreach (var item in kvp.Value)
+                {
+                    var index = (symbol.ID, item.EndTime);
+
+                    Dictionary<string, object> builder;
+                    if (!timetoSeries.ContainsKey(index))
+                    {
+                        builder = new Dictionary<string, object>();
+                        timetoSeries.Add(index, builder);
+                    }
+                    else
+                        builder = timetoSeries[index];
+
+                    if (!builder.ContainsKey(kvp.Key))
+                        builder.Add(kvp.Key, item.Value);
+                    else
+                        throw new InvalidOperationException($"Duplicate time {index}");
+                }
+            }
+
+            return Frame.FromRows(timetoSeries.ToList().Select(kvp => KeyValuePair.Create(kvp.Key, kvp.Value.ToSeries())));
+        }
+
+        public static Frame<(SecurityIdentifier, DateTime), string> Merge(this IEnumerable<Frame<(SecurityIdentifier, DateTime), string>> frames)
+        {
+            Frame<(SecurityIdentifier, DateTime), string> mergedFrame = null;
+            frames.DoForEach(frame =>
+            {
+                if (mergedFrame is null)
+                    mergedFrame = frame;
+                else
+                    mergedFrame = mergedFrame.Merge(frame);
+            });
+            return mergedFrame;
         }
 
         public static GenericChart.GenericChart Plot(object dataFrame, string preTitleText = "", params Series[] seriesArray)
@@ -151,7 +193,7 @@ namespace QuantConnect.Research
             }
 
             var chart = GenericChart.combine(charts).Style($"{preTitleText}{GetTitle(charts)}");
-                
+
             return chart;
         }
 
@@ -165,7 +207,7 @@ namespace QuantConnect.Research
 
             var enumerator = plots.GetEnumerator();
 
-            while(enumerator.MoveNext())
+            while (enumerator.MoveNext())
             {
                 var plot = enumerator.Current;
                 var layout = GetPlotLayout(plot);
@@ -268,15 +310,15 @@ namespace QuantConnect.Research
             string title = "";
 
             if (charts.Any(t =>
-                                { 
+                                {
                                     if (t.IsChart)
-                                        {
-                                            var chart = (GenericChart.GenericChart.Chart)t;
+                                    {
+                                        var chart = (GenericChart.GenericChart.Chart)t;
 
-                                            return chart.Item1.type == "candlestick";
-                                        }
-                                        else
-                                            return false;
+                                        return chart.Item1.type == "candlestick";
+                                    }
+                                    else
+                                        return false;
                                 })
                 )
                 title += "OHLC";
@@ -346,7 +388,7 @@ namespace QuantConnect.Research
 
         private static GenericChart.GenericChart AddOhlcChart(Frame<DateTime, string> dataFrame)
         {
-            
+
             if (dataFrame is null)
             {
                 throw new ArgumentNullException(nameof(dataFrame));
@@ -357,7 +399,7 @@ namespace QuantConnect.Research
             if (data is null)
                 return null;
 
-            var rangeslider = RangeSlider.init<DateTime, decimal>(
+            var rangeslider = RangeSlider.init(
                 BgColor: null,
                 BorderColor: null,
                 BorderWidth: null,
@@ -499,26 +541,26 @@ namespace QuantConnect.Research
                     );
                     break;
                 //case SeriesType.Pie:
-                 //   break;
+                //   break;
                 //case SeriesType.Treemap:
-                    //trace = XChart.Treemap
-                    //(
-                    //    Name: name,
+                //trace = XChart.Treemap
+                //(
+                //    Name: name,
 
-                    //    x: ohlcData.X,
+                //    x: ohlcData.X,
 
-                    //    y: labels.Value,
+                //    y: labels.Value,
 
-                    //    Opacity: 0.5d,
+                //    Opacity: 0.5d,
 
-                    //    Labels: labels
-                    //);
-                    //break;
+                //    Labels: labels
+                //);
+                //break;
                 default:
                     throw new NotSupportedException($"{type} is not a supported chart.");
             }
-            
-            if(isPriceRelated)
+
+            if (isPriceRelated)
                 trace.WithAxisAnchor(Y: 1);
             else
                 trace.WithAxisAnchor(Y: 2);
