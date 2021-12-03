@@ -288,7 +288,7 @@ namespace QuantConnect.Util
                             var bigOpenInterest = data as OpenInterest;
                             if (bigOpenInterest != null)
                             {
-                                return ToCsv(milliseconds, bigOpenInterest.Value);
+                                return ToCsv(longTime, bigOpenInterest.Value);
                             }
                             break;
 
@@ -359,7 +359,7 @@ namespace QuantConnect.Util
                             var bigOpenInterest = data as OpenInterest;
                             if (bigOpenInterest != null)
                             {
-                                return ToCsv(milliseconds, bigOpenInterest.Value);
+                                return ToCsv(longTime, bigOpenInterest.Value);
                             }
                             break;
 
@@ -614,8 +614,8 @@ namespace QuantConnect.Util
                         return string.Join("_",
                             optionPath,
                             tickType.TickTypeToLower(),
-                            symbol.ID.OptionStyle.ToLower(),
-                            symbol.ID.OptionRight.ToLower(),
+                            symbol.ID.OptionStyle.OptionStyleToLower(),
+                            symbol.ID.OptionRight.OptionRightToLower(),
                             Scale(symbol.ID.StrikePrice),
                             symbol.ID.Date.ToStringInvariant(DateFormat.EightCharacter)
                             ) + ".csv";
@@ -626,8 +626,8 @@ namespace QuantConnect.Util
                         optionPath,
                         resolution.ResolutionToLower(),
                         tickType.TickTypeToLower(),
-                        symbol.ID.OptionStyle.ToLower(),
-                        symbol.ID.OptionRight.ToLower(),
+                        symbol.ID.OptionStyle.OptionStyleToLower(),
+                        symbol.ID.OptionRight.OptionRightToLower(),
                         Scale(symbol.ID.StrikePrice),
                         symbol.ID.Date.ToStringInvariant(DateFormat.EightCharacter)
                         ) + ".csv";
@@ -641,8 +641,8 @@ namespace QuantConnect.Util
                         return string.Join("_",
                             futureOptionPath,
                             tickType.TickTypeToLower(),
-                            symbol.ID.OptionStyle.ToLower(),
-                            symbol.ID.OptionRight.ToLower(),
+                            symbol.ID.OptionStyle.OptionStyleToLower(),
+                            symbol.ID.OptionRight.OptionRightToLower(),
                             Scale(symbol.ID.StrikePrice),
                             symbol.ID.Date.ToStringInvariant(DateFormat.EightCharacter)
                             ) + ".csv";
@@ -653,8 +653,8 @@ namespace QuantConnect.Util
                         futureOptionPath,
                         resolution.ResolutionToLower(),
                         tickType.TickTypeToLower(),
-                        symbol.ID.OptionStyle.ToLower(),
-                        symbol.ID.OptionRight.ToLower(),
+                        symbol.ID.OptionStyle.OptionStyleToLower(),
+                        symbol.ID.OptionRight.OptionRightToLower(),
                         Scale(symbol.ID.StrikePrice),
                         symbol.ID.Date.ToStringInvariant(DateFormat.EightCharacter)
                         ) + ".csv";
@@ -723,19 +723,19 @@ namespace QuantConnect.Util
                     if (isHourOrDaily)
                     {
                         var optionPath = symbol.Underlying.Value.ToLowerInvariant();
-                        return $"{optionPath}_{tickTypeString}_{symbol.ID.OptionStyle.ToLower()}.zip";
+                        return $"{optionPath}_{date.Year}_{tickTypeString}_{symbol.ID.OptionStyle.OptionStyleToLower()}.zip";
                     }
 
-                    return $"{formattedDate}_{tickTypeString}_{symbol.ID.OptionStyle.ToLower()}.zip";
+                    return $"{formattedDate}_{tickTypeString}_{symbol.ID.OptionStyle.OptionStyleToLower()}.zip";
 
                 case SecurityType.FutureOption:
                     if (isHourOrDaily)
                     {
                         var futureOptionPath = symbol.ID.Symbol.ToLowerInvariant();
-                        return $"{futureOptionPath}_{tickTypeString}_{symbol.ID.OptionStyle.ToLower()}.zip";
+                        return $"{futureOptionPath}_{date.Year}_{tickTypeString}_{symbol.ID.OptionStyle.OptionStyleToLower()}.zip";
                     }
 
-                    return $"{formattedDate}_{tickTypeString}_{symbol.ID.OptionStyle.ToLower()}.zip";
+                    return $"{formattedDate}_{tickTypeString}_{symbol.ID.OptionStyle.OptionStyleToLower()}.zip";
 
                 case SecurityType.Future:
                     if (isHourOrDaily)
@@ -810,16 +810,16 @@ namespace QuantConnect.Util
                 case SecurityType.IndexOption:
                     if (isHourlyOrDaily)
                     {
-                        var style = (OptionStyle)Enum.Parse(typeof(OptionStyle), parts[2], true);
-                        var right = (OptionRight)Enum.Parse(typeof(OptionRight), parts[3], true);
+                        var style = parts[2].ParseOptionStyle();
+                        var right = parts[3].ParseOptionRight();
                         var strike = Parse.Decimal(parts[4]) / 10000m;
                         var expiry = Parse.DateTimeExact(parts[5], DateFormat.EightCharacter);
                         return Symbol.CreateOption(symbol.Underlying, symbol.ID.Market, style, right, strike, expiry);
                     }
                     else
                     {
-                        var style = (OptionStyle)Enum.Parse(typeof(OptionStyle), parts[4], true);
-                        var right = (OptionRight)Enum.Parse(typeof(OptionRight), parts[5], true);
+                        var style = parts[4].ParseOptionStyle();
+                        var right = parts[5].ParseOptionRight();
                         var strike = Parse.Decimal(parts[6]) / 10000m;
                         var expiry = DateTime.ParseExact(parts[7], DateFormat.EightCharacter, CultureInfo.InvariantCulture);
                         return Symbol.CreateOption(symbol.Underlying, symbol.ID.Market, style, right, strike, expiry);
@@ -1214,7 +1214,32 @@ namespace QuantConnect.Util
                         },
                         Period = resolution
                     };
-        }
-    
+         }
+
+         /// <summary>
+         /// Helper to separate filename and entry from a given key for DataProviders
+         /// </summary>
+         /// <param name="key">The key to parse</param>
+         /// <param name="fileName">File name extracted</param>
+         /// <param name="entryName">Entry name extracted</param>
+         public static void ParseKey(string key, out string fileName, out string entryName)
+         {
+             // Default scenario, no entryName included in key
+             entryName = null; // default to all entries
+             fileName = key;
+
+             if (key == null)
+             {
+                 return;
+             }
+
+             // Try extracting an entry name; Anything after a # sign
+             var hashIndex = key.LastIndexOf("#", StringComparison.Ordinal);
+             if (hashIndex != -1)
+             {
+                 entryName = key.Substring(hashIndex + 1);
+                 fileName = key.Substring(0, hashIndex);
+             }
+         }
     }
 }
