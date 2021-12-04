@@ -38,7 +38,6 @@ using QuantConnect.Packets;
 using QuantConnect.Lean.Engine.DataFeeds.Enumerators.Factories;
 using System.Threading.Tasks;
 using Deedle;
-using MelloQuantFund.Alphas;
 
 namespace QuantConnect.Research
 {
