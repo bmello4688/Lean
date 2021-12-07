@@ -71,6 +71,7 @@ namespace QuantConnect.Research
 
                     var data = ConvertToData(slice, symbol);
 
+                    alphaData?.Price.Update(selector(data));
                     alphaData?.IndicatorsToUpdate.DoForEach(indicator => indicator.Update(selector(data)));
 
                     var alphaDataProperties = alphaData.GetType().GetProperties()
@@ -120,19 +121,15 @@ namespace QuantConnect.Research
                         var insight = insightsBySymbol[symbol];
                         InitializeInsightFields(insight);
 
-                        var baseData = (BaseData)slice[symbol];
-
                         decimal insightDirection = (decimal)insight.Direction;
 
                         var name = nameof(Insight);
                         if (!symbolsToIndicatorNameToDataPoints[symbol].ContainsKey(name))
                         {
                             symbolsToIndicatorNameToDataPoints[symbol].Add(name, new());
-                            symbolsToIndicatorNameToDataPoints[symbol].Add(nameof(baseData.Price), new());
                         }
 
                         symbolsToIndicatorNameToDataPoints[symbol][name].Add(new IndicatorDataPoint(slice.Time, insightDirection));
-                        symbolsToIndicatorNameToDataPoints[symbol][nameof(baseData.Price)].Add(new IndicatorDataPoint(slice.Time, baseData.Value));
                     }
                 });
             });
@@ -180,20 +177,18 @@ namespace QuantConnect.Research
 
         }
 
-        private PyDict ConvertToPyDict(Series series)
+        private PyDict ConvertToPyDict(IndicatorSeries series)
         {
             using (Py.GIL())
             {
                 PyDict dict = new(); 
 
-                var csdict = series.GetType().GetFields()
-                .Where(p => p.IsPublic)
+                var csdict = series.GetType().GetProperties()
+                .Where(p => p.CanRead)
                 .ToDictionary(p => p.Name, p => p.GetValue(series));
 
                 //convert to string
                 csdict[nameof(series.Color)] = series.Color.IsEmpty ? string.Empty : ColorTranslator.ToHtml(series.Color);
-                //don't use values
-                csdict.Remove(nameof(series.Values));
 
                 csdict.DoForEach(kvp => dict.SetItem(kvp.Key.ToLowerInvariant(), kvp.Value.ToPython()));
 

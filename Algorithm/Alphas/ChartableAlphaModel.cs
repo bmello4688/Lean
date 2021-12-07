@@ -18,7 +18,7 @@ namespace QuantConnect.Algorithm.Framework.Alphas
         where TSymbolData : ChartableAlphaData<TBaseData>
         where TBaseData : class, IBaseData
     {
-        private readonly List<Series> seriesChartOptions;
+        private readonly List<IndicatorSeries> seriesChartOptions;
         private readonly Resolution _insightResolution;
         private readonly Dictionary<Symbol, TSymbolData> _symbolDataBySymbol = new();
 
@@ -26,7 +26,7 @@ namespace QuantConnect.Algorithm.Framework.Alphas
             _symbolDataBySymbol.ContainsKey(symbol) ? 
             _symbolDataBySymbol[symbol] : default;
 
-        public ChartableAlphaModel(Resolution insightResolution, params Series[]seriesOptions)
+        public ChartableAlphaModel(Resolution insightResolution, params IndicatorSeries[]seriesOptions)
         {
             _insightResolution = insightResolution;
             Name = $"{GetType().Name}({_insightResolution})";
@@ -34,9 +34,9 @@ namespace QuantConnect.Algorithm.Framework.Alphas
             seriesChartOptions = new();
             if(seriesOptions is not null && seriesOptions.Length > 0)
                 seriesChartOptions.AddRange(seriesOptions);
-            seriesChartOptions.Add(new($"{InsightDirection.Up}_{nameof(Insight)}", SeriesType.Scatter, "$", Color.Green, ScatterMarkerSymbol.Triangle));
-            seriesChartOptions.Add(new($"{InsightDirection.Down}_{nameof(Insight)}", SeriesType.Scatter, "$", Color.Red, ScatterMarkerSymbol.TriangleDown));
-            seriesChartOptions.Add(new($"{InsightDirection.Flat}_{nameof(Insight)}", SeriesType.Scatter, "$", Color.Blue, ScatterMarkerSymbol.Square));
+            seriesChartOptions.Add(new(InsightDirection.Up, nameof(Insight), SeriesType.Scatter, Color.Green, ScatterMarkerSymbol.Triangle));
+            seriesChartOptions.Add(new(InsightDirection.Down, nameof(Insight), SeriesType.Scatter, Color.Red, ScatterMarkerSymbol.TriangleDown));
+            seriesChartOptions.Add(new(InsightDirection.Flat, nameof(Insight), SeriesType.Scatter, Color.Blue, ScatterMarkerSymbol.Square));
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace QuantConnect.Algorithm.Framework.Alphas
             }
         }
 
-        public IEnumerable<Series> GetSeriesPlotOptions()
+        public IEnumerable<IndicatorSeries> GetSeriesPlotOptions()
         {
             return seriesChartOptions;
         }
@@ -123,6 +123,8 @@ namespace QuantConnect.Algorithm.Framework.Alphas
 
         internal bool AreAllIndicatorsReady => IndicatorsToUpdate?.All(i => i.IsReady) ?? false;
 
+        public IndicatorBase<TBaseData> Price { get; private set; }
+
         public Func<int> GetPredictionBarCount { get; private set; }
 
         public ChartableAlphaData(Security added, Func<int> getPredictionBarCount, params IndicatorBase<TBaseData>[] indicators)
@@ -130,10 +132,15 @@ namespace QuantConnect.Algorithm.Framework.Alphas
             Security = added;
             _indicatorsToRegisterForUpdates.AddRange(indicators);
             GetPredictionBarCount = getPredictionBarCount ?? throw new ArgumentNullException(nameof(getPredictionBarCount));
+
+            Price = new FunctionalIndicator<TBaseData>(nameof(Price),
+                b => b.Value,
+                b => true);
         }
 
         internal void RegisterIndicators(QCAlgorithm algorithm, Resolution indicatorsResolution)
         {
+            algorithm.RegisterIndicatorForUpdates(Price, Symbol, indicatorsResolution);
             IndicatorsToUpdate.DoForEach(indicator =>
             {
                 algorithm.RegisterIndicatorForUpdates(indicator, Symbol, indicatorsResolution);

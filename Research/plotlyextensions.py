@@ -151,74 +151,92 @@ def __convert_symbol_to_plotly(symbol):
     elif symbol == 5:
         return "triangle-down"
 
-def __add_symbol_specific_alpha_trace(fig, series, column, series_graph_info, unique_indices):
-    if series_graph_info:
-        name = series_graph_info['name']
-        series_type = series_graph_info['seriestype']
-        is_price_related = series_graph_info['unit'] == '$'
-        graph_index = series_graph_info['index']
-        color = series_graph_info['color']
-        marker_symbol = __convert_symbol_to_plotly(series_graph_info['scattermarkersymbol'])
+def __add_symbol_specific_alpha_trace(fig, series, column, series_graph_info_list, unique_indices):
+    if series_graph_info_list:
+        for count, series_graph_info in enumerate(series_graph_info_list):
+            name = series_graph_info['name']
+            series_type = series_graph_info['seriestype']
+            is_price_related = series_graph_info['ispricerelated']
+            graph_index = series_graph_info['index']
+            color = series_graph_info['color']
+            marker_symbol = __convert_symbol_to_plotly(series_graph_info['scattermarkersymbol'])
         
-        if is_price_related:
-            series = series[series > 0]
+            if count > 0:
+                graph_name = f"{column}_{count}"
+            else:
+                graph_name = column
 
-        #parse SeriesType
-        graph = None
-        if series_type == 0: #line
-            graph = go.Scatter(x=series.index, y=series, name=column,
-                         line=dict(color=color, width=4))
-        elif series_type == 1: #scatter
-            graph = go.Scatter(x=series.index, y = series, name=column, 
-                                 mode='markers', marker_color=color, marker_symbol=marker_symbol, marker_size=12)
-        #elif series_type == 2: #candle
-        #    pass
-        elif series_type == 3: #bar
-            graph = go.Bar(x=series.index, y = series, name=column, marker_color=color)
-        #elif series_type == 4: #flag
-        #    pass
-        elif series_type == 5: #stacked area
-            graph = go.Scatter(x=series.index, y=series, name=column,
-                        stackgroup='one',
-                        line=dict(color=color, width=0.5))
-        elif series_type == 6: #pie
-            graph = go.Pie(labels=series.index, values=series, name=column,
-                        textfont_size=20, hoverinfo='label+percent', 
-                        marker=dict(line=dict(color=color, width=2)))
-        #elif series_type == 7: #treemap
-        #    graph = go.Treemap(
-        #                    labels = labels,
-        #                    parents = parents,
-        #                    values = [10, 14, 12, 10, 2, 6, 6, 1, 4],
-        #                    textinfo = "label+value+percent parent+percent
-        #                    entry+percent root",
-        #                    root_color="lightgrey"
-        #                )
+            if is_price_related:
+                series = series[series > 0]
 
-        if graph:
-            if is_price_related: #price indicator (put in ohlc graph)
-                if len(unique_indices) > 0: #subplots made
-                    fig.add_trace(graph, row=1, col=1)
-                else:
-                    fig.add_trace(graph)
-            else: #otherwise assign subgraph
-                current_graph_index = list(unique_indices).index(graph_index) + 2 #starts at 2 from previously added OHLCV graph
-                fig.add_trace(graph, row=current_graph_index, col=1)
-                if fig.layout.annotations[current_graph_index - 1].text == "Plot":
-                    fig.layout.annotations[current_graph_index - 1].update(text=name)
-                else:
-                    fig.layout.annotations[current_graph_index - 1].update(text=f'{fig.layout.annotations[current_graph_index-1].text} & {name}')
+            #parse SeriesType
+            graph = None
+            if series_type == 0: #line
+                graph = go.Scatter(x=series.index, y=series, name=graph_name,
+                             line=dict(color=color, width=4))
+            elif series_type == 1: #scatter
+                graph = go.Scatter(x=series.index, y = series, name=graph_name, 
+                                     mode='markers', marker_color=color, marker_symbol=marker_symbol, marker_size=12)
+            #elif series_type == 2: #candle
+            #    pass
+            elif series_type == 3: #bar
+                graph = go.Bar(x=series.index, y = series, name=graph_name, marker_color=color)
+            #elif series_type == 4: #flag
+            #    pass
+            elif series_type == 5: #stacked area
+                graph = go.Scatter(x=series.index, y=series, name=graph_name,
+                            stackgroup='one',
+                            line=dict(color=color, width=0.5))
+            elif series_type == 6: #pie
+                graph = go.Pie(labels=series.index, values=series, name=graph_name,
+                            textfont_size=20, hoverinfo='label+percent', 
+                            marker=dict(line=dict(color=color, width=2)))
+            #elif series_type == 7: #treemap
+            #    graph = go.Treemap(
+            #                    labels = labels,
+            #                    parents = parents,
+            #                    values = [10, 14, 12, 10, 2, 6, 6, 1, 4],
+            #                    textinfo = "label+value+percent parent+percent
+            #                    entry+percent root",
+            #                    root_color="lightgrey"
+            #                )
+
+            if graph:
+                if is_price_related: #price indicator (put in ohlc graph)
+                    if len(unique_indices) > 0: #subplots made
+                        fig.add_trace(graph, row=1, col=1)
+                    else:
+                        fig.add_trace(graph)
+                else: #otherwise assign subgraph
+                    current_graph_index = list(unique_indices).index(graph_index) + 2 #starts at 2 from previously added OHLCV graph
+                    fig.add_trace(graph, row=current_graph_index, col=1)
+                    if fig.layout.annotations[current_graph_index - 1].text == "Plot":
+                        fig.layout.annotations[current_graph_index - 1].update(text=name)
+                    else:
+                        fig.layout.annotations[current_graph_index - 1].update(text=f'{fig.layout.annotations[current_graph_index-1].text} & {name}')
                 
-                fig.update_xaxes(row=current_graph_index, col=1, title="Time")
-                print(series_graph_info['unit'])
-                fig.update_yaxes(row=current_graph_index, col=1, title=series_graph_info['unit'])
+                    fig.update_xaxes(row=current_graph_index, col=1, title="Time")
+                    fig.update_yaxes(row=current_graph_index, col=1, title=series_graph_info['nonpricechartyaxistitle'])
 
+def __filter_noexception(func, iter):
+    result = []
+    for i in iter:
+        try:
+            if func(i):
+                result.append(i)
+        except:
+            pass
+
+    if len(result) == 0:
+        return None
+    else:
+        return result
 
 def __add_alpha_traces(fig, symbol_specific_alpha_dataframe: pd.DataFrame, graph_info: list):
     columns = symbol_specific_alpha_dataframe.columns.to_list()
-    num_of_non_price_graphs = sum(info['unit'] != '$' for info in graph_info)
+    num_of_non_price_graphs = sum(not info['ispricerelated'] for info in graph_info)
     if num_of_non_price_graphs > 0:
-        unique_indices = set(map(lambda info: info['index'], filter(lambda info: info['unit'] != '$', graph_info)))
+        unique_indices = set(map(lambda info: info['index'], filter(lambda info: not info['ispricerelated'], graph_info)))
     else:
         unique_indices = set()
 
@@ -244,31 +262,29 @@ def __add_alpha_traces(fig, symbol_specific_alpha_dataframe: pd.DataFrame, graph
         subplots.layout.annotations[0].update(text=fig.layout.title.text)
         fig = subplots
 
+    price = symbol_specific_alpha_dataframe["price"].dropna()
     for column in columns:
         series = symbol_specific_alpha_dataframe[column].dropna()
-        #ohlc = next(filter(lambda trace: trace['type'] == 'candlestick',
-        #fig._data), None)
-        series_graph_info = next(filter(lambda info: info['name'].lower() == column, graph_info), None)
-        __add_symbol_specific_alpha_trace(fig, series, column, series_graph_info, unique_indices)
+        
+        try:
+            category_series_graph_info = __filter_noexception(lambda info: column in info['name'].lower() and info['name'].lower() != column, graph_info)
+            exact_series_graph_info = __filter_noexception(lambda info:info['name'].lower() == column, graph_info)
+            if category_series_graph_info and len(category_series_graph_info) > 1:
+                for sginfo in category_series_graph_info:
+                    sginfo_name = sginfo['name'].lower()
+                    category_value = float(sginfo['categoryvalue'])
 
-        if not series_graph_info and column == "insight":
-            price = symbol_specific_alpha_dataframe["price"].dropna()
-            for sginfo in filter(lambda info: column in info['name'].lower(), graph_info):
-                sginfo_name = sginfo['name'].lower()
-                column_value = 0
-                if sginfo_name == "up_insight":
-                    column_value = 1
-                elif sginfo_name == "down_insight":
-                    column_value = -1
-
-                direction_series_index = series[series == column_value].index
-                if len(direction_series_index) > 0:
-                    __add_symbol_specific_alpha_trace(fig, price.loc[direction_series_index], sginfo_name, sginfo, unique_indices)
+                    category_series_index = series[series == category_value].index
+                    if len(category_series_index) > 0:
+                        __add_symbol_specific_alpha_trace(fig, price.loc[category_series_index], sginfo_name, [sginfo], unique_indices)
+            if exact_series_graph_info:
+                __add_symbol_specific_alpha_trace(fig, series, column, exact_series_graph_info, unique_indices)
+        except Exception as ex:
+            print(f"Error: {ex}")
 
     return fig
 
 def add_alpha_to_plot(plot, alpha_dataframe: pd.DataFrame, graph_info: list):
-    
     figs = __validate_and_return_figures(plot)
     
     if isinstance(alpha_dataframe.index, pd.MultiIndex):
