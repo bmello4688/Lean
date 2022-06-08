@@ -21,7 +21,7 @@ namespace QuantConnect.Algorithm
 
             var wrappedIndicator = new RegisteredIndicator<TBaseData>(name, indicator);
 
-            algorithm.RegisterIndicator(symbol, wrappedIndicator, resolution, s => s as TBaseData);
+            algorithm.RegisterIndicator(symbol, wrappedIndicator, resolution, typeof(TBaseData) != typeof(IndicatorDataPoint) ? s => s as TBaseData: null);
 
             if (algorithm.EnableAutomaticIndicatorWarmUp)
             {

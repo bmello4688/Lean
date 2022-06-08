@@ -30,7 +30,7 @@ namespace QuantConnect
         /// <summary>
         /// Y-Axis Title for the chart series.
         /// </summary>
-        public string NonPriceChartYAxisTitle { get; } = "Unit";
+        public string NonPriceChartYAxisTitle { get; set; } = "Unit";
 
         /// <summary>
         /// Chart type for the series:
@@ -62,8 +62,8 @@ namespace QuantConnect
             ScatterMarkerSymbol = symbol;
         }
 
-        public IndicatorSeries(Enum category, string name, SeriesType type, Color color, ScatterMarkerSymbol symbol = ScatterMarkerSymbol.None) 
-            : this($"{category.ToStringInvariant()}_{name}", type, true, color, symbol)
+        public IndicatorSeries(Enum category, string alphaIndicatorPropertyName, SeriesType type, Color color, ScatterMarkerSymbol symbol = ScatterMarkerSymbol.None) 
+            : this($"{category.ToStringInvariant()}_{alphaIndicatorPropertyName}", type, true, color, symbol)
         {
             IsACategory = true;
             CategoryValue = Enum.Parse(category.GetType(), category.ToStringInvariant()).ConvertInvariant<decimal>();

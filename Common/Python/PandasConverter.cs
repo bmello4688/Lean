@@ -175,6 +175,10 @@ namespace QuantConnect.Python
                         values.Add((double)item.Value);
                     }
 
+                    //Check for duplicate date times
+                    if (index.Select(t => t.Item2).Distinct().Count() != index.Count)
+                        throw new InvalidOperationException($"{kvp.Key} is not updating.");
+
                     var pyIndex = index.Select(tuple => new PyTuple(new[] { tuple.Item1.ToPython(), tuple.Item2.ToPython() })).ToArray();
 
                     var multiIndex = _pandas.MultiIndex.from_tuples(pyIndex, names: indexNames);

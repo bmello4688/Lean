@@ -133,7 +133,7 @@ namespace QuantConnect.Research
                     if (!builder.ContainsKey(kvp.Key))
                         builder.Add(kvp.Key, item.Value);
                     else
-                        throw new InvalidOperationException($"Duplicate time {index}");
+                        throw new InvalidOperationException($"{kvp.Key} is not updating.");
                 }
             }
 

@@ -31,15 +31,8 @@ def __single_symbol_plot(df: pd.DataFrame, pre_title_text):
     if ohlc:
         title = ohlc.name
         fig.add_trace(ohlc, secondary_y=False)
-        fig.update_layout(xaxis_rangeslider_visible=False)
-        if len(df.index) > 1:
-            timespan = df.index[1] - df.index[0]
-            #only add range breaks on time less than days
-            if timespan.days == 0:
-                freqInMillis = int(timespan.delta / 1000000)
-                missingDates = pd.date_range(start = df.index[0], end = df.index[-1], freq=timespan.resolution_string).difference(df.index).format()
-                fig.update_layout(xaxis_rangebreaks=[dict(values=missingDates, dvalue=freqInMillis)])
-        
+        fig.update_layout(xaxis_rangeslider_visible=False, xaxis_type="category", xaxis_categoryorder='category ascending')
+        title=ohlc.name
 
     volume = __get_volume_chart_data(df)
 
@@ -256,7 +249,7 @@ def __add_alpha_traces(fig, symbol_specific_alpha_dataframe: pd.DataFrame, graph
                                  )
         subplots.add_trace(fig.data[0], row=1, col=1, secondary_y=False)
         subplots.add_trace(fig.data[1], row=1, col=1, secondary_y=True)
-        subplots.update_xaxes(row=1, col=1, rangeslider_visible=False, title="Time")
+        subplots.update_xaxes(row=1, col=1, rangeslider_visible=False, title="Time", type="category", categoryorder='category ascending')
         subplots.update_yaxes(row=1, col=1, title="Price")
         subplots.layout.yaxis2.title.text="Unit(Volume)"
         subplots.layout.annotations[0].update(text=fig.layout.title.text)

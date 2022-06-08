@@ -8,9 +8,11 @@ using System.Threading.Tasks;
 using Python.Runtime;
 using QuantConnect.Algorithm.Framework.Alphas;
 using QuantConnect.Data;
+using QuantConnect.Data.Consolidators;
 using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Indicators;
+using QuantConnect.Logging;
 using QuantConnect.Securities;
 using QuantConnect.Util;
 
@@ -18,19 +20,29 @@ namespace QuantConnect.Research
 {
     public partial class QuantBook
     {
-        public dynamic RunAlpha<TAlphaData, TBaseData>(ChartableAlphaModel<TAlphaData, TBaseData> alpha, Symbol symbol, int period, Resolution? resolution = null, Func<BaseData, IBaseData> selector = null)
-            where TAlphaData : ChartableAlphaData<TBaseData>
-            where TBaseData : class, IBaseData
+        public dynamic RunAlpha(IChartableAlphaModel alpha, int period, Resolution? resolution = null)
         {
-            return RunAlpha(alpha, new[] { symbol }, period, resolution, selector);
+            var history = History(period, resolution);
+            return RunAlpha(alpha, history);
         }
 
-        public dynamic RunAlpha<TAlphaData, TBaseData>(ChartableAlphaModel<TAlphaData, TBaseData> alpha, Symbol[] symbols, int period, Resolution? resolution = null, Func<BaseData, IBaseData> selector = null)
-            where TAlphaData : ChartableAlphaData<TBaseData>
-            where TBaseData : class, IBaseData
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="alpha"></param>
+        /// <param name="start"></param>
+        /// <param name="end">if null then present</param>
+        /// <param name="resolution"></param>
+        /// <returns></returns>
+        public dynamic RunAlpha(IChartableAlphaModel alpha, DateTime start, DateTime? end = null, Resolution? resolution = null)
         {
-            var history = History(symbols, period, resolution);
-            return RunAlpha(alpha, history, selector);
+            if(end is null)
+            {
+                end = DateTime.UtcNow;
+            }
+
+            var history = History(Securities.Keys, start, end.Value, resolution);
+            return RunAlpha(alpha, history);
         }
 
         /// <summary>
@@ -40,44 +52,70 @@ namespace QuantConnect.Research
         /// <param name="history">Historical data used to calculate the indicator</param>
         /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
         /// <returns>pandas.DataFrame containing the historical data of <param name="indicator"></returns>
-        private dynamic RunAlpha<TAlphaData, TBaseData>(ChartableAlphaModel<TAlphaData, TBaseData> alpha, IEnumerable<Slice> history, Func<BaseData, IBaseData> selector = null)
-            where TAlphaData : ChartableAlphaData<TBaseData>
-            where TBaseData : class, IBaseData
+        private dynamic RunAlpha(IChartableAlphaModel alpha, IEnumerable<Slice> history)
         {
-            selector ??= (x => x);
             SetAlpha(alpha);
 
+            static IBaseData selectorToUse(IndicatorBase indicator, IBaseData data) => indicator is IndicatorBase<IndicatorDataPoint> ?
+                                                            new IndicatorDataPoint(data.Symbol, data.EndTime, data.Value) :
+                                                            data;
+
             Dictionary<Symbol, Dictionary<string, List<IndicatorDataPoint>>> symbolsToIndicatorNameToDataPoints = new();
+            Dictionary<Symbol, ISet<IDataConsolidator>> symbolToConsolidators = new();
             IReadOnlyList<Symbol> activeSymbols = null;
             history.DoForEach(slice =>
             {
                 var newAddedSymbols = activeSymbols is null ? slice.Keys : slice.Keys.Where(s => !activeSymbols.Contains(s));
                 var newRemovedSymbols = activeSymbols?.Where(s => !slice.Keys.Contains(s)) ?? Enumerable.Empty<Symbol>();
 
-                activeSymbols = slice.Keys;
-
                 alpha.OnSecuritiesChanged(this, new SecurityChanges(newAddedSymbols.Select(s => AddSecurity(s)), newRemovedSymbols.Select(s => Securities[s])));
                 //newRemovedSymbols.DoForEach(s => RemoveSecurity(s.Symbol));
 
+                activeSymbols = slice.Keys;
+
+                
                 var insightsBySymbol = alpha.Update(this, slice).ToDictionary(i => i.Symbol);
 
                 //record
                 slice.Keys.DoForEach(symbol =>
                 {
-                    if (!symbolsToIndicatorNameToDataPoints.ContainsKey(symbol))
-                        symbolsToIndicatorNameToDataPoints.Add(symbol, new());
+
+
+                    if (!symbolToConsolidators.ContainsKey(symbol))
+                    {
+                        symbolToConsolidators.Add(symbol, GetRegisteredConsolidators(symbol));
+                    }
+
+                    var consolidators = symbolToConsolidators[symbol];
+
+                    consolidators.DoForEach(consolidator =>
+                   {
+                       var data = slice.Get(consolidator.InputType);
+
+                       if (data.ContainsKey(symbol))
+                       {
+                           var lastBar = (IBaseData)data[symbol];
+                           consolidator.Update(lastBar);
+                           consolidator.Scan(lastBar.EndTime);
+                       }
+                   });
+
+                    //var data = ConvertToData(slice, symbol);
 
                     var alphaData = alpha[symbol];
 
-                    var data = ConvertToData(slice, symbol);
+                    if (alphaData is null)
+                    {
+                        Log($"No alpha data for {symbol}");
+                        return;
+                    }
 
-                    alphaData?.Price.Update(selector(data));
-                    alphaData?.IndicatorsToUpdate.DoForEach(indicator => indicator.Update(selector(data)));
+                    if (!symbolsToIndicatorNameToDataPoints.ContainsKey(symbol))
+                        symbolsToIndicatorNameToDataPoints.Add(symbol, new());
 
-                    var alphaDataProperties = alphaData.GetType().GetProperties()
-                                    .Where(x => x.PropertyType.IsGenericType
-                                    || x.PropertyType.IsValueType)
-                                    .ToDictionary(x => x.Name, y => y.GetValue(alphaData));
+                    //alphaData.IndicatorsToUpdate.DoForEach(indicator => indicator.Update(selectorToUse(indicator, data)));
+
+                    var alphaDataProperties = alphaData.GetChartableIndicators();
 
                     alphaDataProperties.DoForEach(alphaDataProperty =>
                     {
@@ -175,6 +213,34 @@ namespace QuantConnect.Research
             }
 
 
+        }
+
+        private ISet<IDataConsolidator> GetRegisteredConsolidators(Symbol symbol, TickType? tickType = null)
+        {
+            SubscriptionDataConfig subscription;
+            try
+            {
+                // deterministic ordering is required here
+                var subscriptions = SubscriptionManager.SubscriptionDataConfigService
+                    .GetSubscriptionDataConfigs(symbol)
+                    .OrderBy(x => x.TickType)
+                    .ToList();
+
+                // find our subscription
+                subscription = subscriptions.FirstOrDefault(x => tickType == null || tickType == x.TickType);
+                if (subscription == null)
+                {
+                    // if we can't locate the exact subscription by tick type just grab the first one we find
+                    subscription = subscriptions.First();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // this will happen if we did not find the subscription, let's give the user a decent error message
+                throw new Exception($"Please register to receive data for symbol \'{symbol}\' using the AddSecurity() function.");
+            }
+
+            return subscription.Consolidators;
         }
 
         private PyDict ConvertToPyDict(IndicatorSeries series)
