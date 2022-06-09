@@ -68,7 +68,13 @@ namespace QuantConnect.Research
                 var newAddedSymbols = activeSymbols is null ? slice.Keys : slice.Keys.Where(s => !activeSymbols.Contains(s));
                 var newRemovedSymbols = activeSymbols?.Where(s => !slice.Keys.Contains(s)) ?? Enumerable.Empty<Symbol>();
 
-                alpha.OnSecuritiesChanged(this, new SecurityChanges(newAddedSymbols.Select(s => AddSecurity(s)), newRemovedSymbols.Select(s => Securities[s])));
+                var added = newAddedSymbols.Select(s => AddSecurity(s));
+                var removed = newRemovedSymbols.Select(s => Securities[s]);
+
+                alpha.OnSecuritiesChanged(this, SecurityChanges.Create(added.Where(s => !s.IsInternalFeed()).ToList(),
+                    added.Where(s => !s.IsInternalFeed()).ToList(),
+                    removed.Where(s => !s.IsInternalFeed()).ToList(),
+                    removed.Where(s => s.IsInternalFeed()).ToList()));
                 //newRemovedSymbols.DoForEach(s => RemoveSecurity(s.Symbol));
 
                 activeSymbols = slice.Keys;
