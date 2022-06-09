@@ -22,5 +22,10 @@ namespace QuantConnect.ToolBox.TDAmeritradeDownloader
         {
             return TDAmeritradeBrokerage.GetPriceHistory(symbol, resolution, startUtc, endUtc, TimeZones.NewYork);
         }
+
+        public IEnumerable<BaseData> Get(DataDownloaderGetParameters dataDownloaderGetParameters)
+        {
+            return Get(dataDownloaderGetParameters.Symbol, dataDownloaderGetParameters.Resolution, dataDownloaderGetParameters.StartUtc, dataDownloaderGetParameters.EndUtc);
+        }
     }
 }

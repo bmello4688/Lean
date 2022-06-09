@@ -33,7 +33,6 @@ using QuantConnect.ToolBox.Polygon;
 using QuantConnect.ToolBox.QuantQuoteConverter;
 using QuantConnect.ToolBox.RandomDataGenerator;
 using QuantConnect.ToolBox.YahooDownloader;
-using QuantConnect.ToolBox.ZerodhaDownloader;
 using QuantConnect.ToolBox.TDAmeritradeDownloader;
 using QuantConnect.Util;
 using System;
