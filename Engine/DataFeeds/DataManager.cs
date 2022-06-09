@@ -407,11 +407,14 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             bool isFilteredSubscription = true,
             bool isInternalFeed = false,
             bool isCustomData = false,
-            DataNormalizationMode dataNormalizationMode = DataNormalizationMode.Adjusted
+            DataNormalizationMode dataNormalizationMode = DataNormalizationMode.Adjusted,
+            DataMappingMode dataMappingMode = DataMappingMode.OpenInterest,
+            uint contractDepthOffset = 0
             )
         {
             return Add(symbol, resolution, fillForward, extendedMarketHours, isFilteredSubscription, isInternalFeed, isCustomData,
-                new List<Tuple<Type, TickType>> { new Tuple<Type, TickType>(dataType, LeanData.GetCommonTickTypeForCommonDataTypes(dataType, symbol.SecurityType))}, dataNormalizationMode)
+                new List<Tuple<Type, TickType>> { new Tuple<Type, TickType>(dataType, LeanData.GetCommonTickTypeForCommonDataTypes(dataType, symbol.SecurityType))},
+                dataNormalizationMode, dataMappingMode, contractDepthOffset)
                 .First();
         }
 
@@ -429,7 +432,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             bool isInternalFeed = false,
             bool isCustomData = false,
             List<Tuple<Type, TickType>> subscriptionDataTypes = null,
-            DataNormalizationMode dataNormalizationMode = DataNormalizationMode.Adjusted
+            DataNormalizationMode dataNormalizationMode = DataNormalizationMode.Adjusted,
+            DataMappingMode dataMappingMode = DataMappingMode.OpenInterest,
+            uint contractDepthOffset = 0
             )
         {
             var dataTypes = subscriptionDataTypes ??
@@ -480,7 +485,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
             var exchangeHours = marketHoursDbEntry.ExchangeHours;
             if (symbol.ID.SecurityType.IsOption() ||
-                symbol.ID.SecurityType == SecurityType.Future ||
                 symbol.ID.SecurityType == SecurityType.Index)
             {
                 dataNormalizationMode = DataNormalizationMode.Raw;
@@ -514,7 +518,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     isCustomData,
                     isFilteredSubscription: isFilteredSubscription,
                     tickType: tickType,
-                    dataNormalizationMode: dataNormalizationMode)).ToList();
+                    dataNormalizationMode: dataNormalizationMode,
+                    dataMappingMode: dataMappingMode,
+                    contractDepthOffset: contractDepthOffset)).ToList();
 
             for (int i = 0; i < result.Count; i++)
             {

@@ -13,27 +13,23 @@
  * limitations under the License.
 */
 using QuantConnect.Configuration;
+using QuantConnect.Interfaces;
 using QuantConnect.Logging;
 using QuantConnect.ToolBox.AlgoSeekFuturesConverter;
 using QuantConnect.ToolBox.AlgoSeekOptionsConverter;
 using QuantConnect.ToolBox.AlphaVantageDownloader;
-using QuantConnect.ToolBox.BinanceDownloader;
-using QuantConnect.ToolBox.BitfinexDownloader;
 using QuantConnect.ToolBox.CoarseUniverseGenerator;
 using QuantConnect.ToolBox.CoinApiDataConverter;
 using QuantConnect.ToolBox.CryptoiqDownloader;
 using QuantConnect.ToolBox.DukascopyDownloader;
 using QuantConnect.ToolBox.GDAXDownloader;
-using QuantConnect.ToolBox.IBDownloader;
 using QuantConnect.ToolBox.IEX;
 using QuantConnect.ToolBox.IQFeedDownloader;
 using QuantConnect.ToolBox.IVolatilityEquityConverter;
 using QuantConnect.ToolBox.KaikoDataConverter;
 using QuantConnect.ToolBox.KrakenDownloader;
 using QuantConnect.ToolBox.NseMarketDataConverter;
-using QuantConnect.ToolBox.OandaDownloader;
 using QuantConnect.ToolBox.Polygon;
-using QuantConnect.ToolBox.QuandlBitfinexDownloader;
 using QuantConnect.ToolBox.QuantQuoteConverter;
 using QuantConnect.ToolBox.RandomDataGenerator;
 using QuantConnect.ToolBox.YahooDownloader;
@@ -65,6 +61,16 @@ namespace QuantConnect.ToolBox
                 PrintMessageAndExit();
             }
 
+            var dataProvider
+                = Composer.Instance.GetExportedValueByTypeName<IDataProvider>(Config.Get("data-provider", "DefaultDataProvider"));
+            var mapFileProvider
+                = Composer.Instance.GetExportedValueByTypeName<IMapFileProvider>(Config.Get("map-file-provider", "LocalDiskMapFileProvider"));
+            var factorFileProvider
+                = Composer.Instance.GetExportedValueByTypeName<IFactorFileProvider>(Config.Get("factor-file-provider", "LocalDiskFactorFileProvider"));
+            
+            mapFileProvider.Initialize(dataProvider);
+            factorFileProvider.Initialize(mapFileProvider, dataProvider);
+
             var targetApp = GetParameterOrExit(optionsObject, "app").ToLowerInvariant();
             if (targetApp.Contains("download") || targetApp.EndsWith("dl"))
             {
@@ -78,10 +84,6 @@ namespace QuantConnect.ToolBox
                     : DateTime.UtcNow;
                 switch (targetApp)
                 {
-                    case "zdl":
-                    case "zerodhadownloader":
-                        ZerodhaDataDownloaderProgram.ZerodhaDataDownloader(tickers, market, resolution, securityType, fromDate, toDate);
-                        break;
                     case "gdaxdl":
                     case "gdaxdownloader":
                         GDAXDownloaderProgram.GDAXDownloader(tickers, resolution, fromDate, toDate);
@@ -93,10 +95,6 @@ namespace QuantConnect.ToolBox
                     case "ddl":
                     case "dukascopydownloader":
                         DukascopyDownloaderProgram.DukascopyDownloader(tickers, resolution, fromDate, toDate);
-                        break;
-                    case "ibdl":
-                    case "ibdownloader":
-                        IBDownloaderProgram.IBDownloader(tickers, resolution, fromDate, toDate);
                         break;
                     case "iexdl":
                     case "iexdownloader":
@@ -110,27 +108,11 @@ namespace QuantConnect.ToolBox
                     case "krakendownloader":
                         KrakenDownloaderProgram.KrakenDownloader(tickers, resolution, fromDate, toDate);
                         break;
-                    case "odl":
-                    case "oandadownloader":
-                        OandaDownloaderProgram.OandaDownloader(tickers, resolution, fromDate, toDate);
-                        break;
                     case "qbdl":
-                    case "quandlbitfinexdownloader":
-                        QuandlBitfinexDownloaderProgram.QuandlBitfinexDownloader(fromDate, GetParameterOrExit(optionsObject, "api-key"));
-                        break;
                     case "ydl":
                     case "yahoodownloader":
                         YahooDownloaderProgram.YahooDownloader(tickers, resolution, fromDate, toDate);
                         break;
-                    case "bfxdl":
-                    case "bitfinexdownloader":
-                        BitfinexDownloaderProgram.BitfinexDownloader(tickers, resolution, fromDate, toDate);
-                        break;
-                    case "mbxdl":
-                    case "binancedownloader":
-                        BinanceDownloaderProgram.DataDownloader(tickers, resolution, fromDate, toDate);
-                        break;
-
                     case "pdl":
                     case "polygondownloader":
                         PolygonDownloaderProgram.PolygonDownloader(
@@ -173,16 +155,16 @@ namespace QuantConnect.ToolBox
             {
                 switch (targetApp)
                 {
-                    case "mbxspu":
-                    case "binancesymbolpropertiesupdater":
-                        BinanceDownloaderProgram.ExchangeInfoDownloader();
+                    case "gdaxspu":
+                    case "gdaxsymbolpropertiesupdater":
+                        GDAXDownloaderProgram.ExchangeInfoDownloader();
                         break;
                     default:
                         PrintMessageAndExit(1, "ERROR: Unrecognized --app value");
                         break;
                 }
             }
-            else
+            else     
             {
                 switch (targetApp)
                 {
@@ -232,6 +214,7 @@ namespace QuantConnect.ToolBox
                         break;
                     case "rdg":
                     case "randomdatagenerator":
+                        var tickers = ToolboxArgumentParser.GetTickers(optionsObject);
                         RandomDataGeneratorProgram.RandomDataGenerator(
                             GetParameterOrExit(optionsObject, "start"),
                             GetParameterOrExit(optionsObject, "end"),
@@ -247,7 +230,11 @@ namespace QuantConnect.ToolBox
                             GetParameterOrDefault(optionsObject, "rename-percentage", "30.0"),
                             GetParameterOrDefault(optionsObject, "splits-percentage", "15.0"),
                             GetParameterOrDefault(optionsObject, "dividends-percentage", "60.0"),
-                            GetParameterOrDefault(optionsObject, "dividend-every-quarter-percentage", "30.0")
+                            GetParameterOrDefault(optionsObject, "dividend-every-quarter-percentage", "30.0"),
+                            GetParameterOrDefault(optionsObject, "option-price-engine", "BaroneAdesiWhaleyApproximationEngine"),
+                            GetParameterOrDefault(optionsObject, "volatility-model-resolution", "Daily"),
+                            GetParameterOrDefault(optionsObject, "chain-symbol-count", "1"),
+                            tickers
                         );
                         break;
 
