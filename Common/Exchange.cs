@@ -1,4 +1,4 @@
-﻿/*
+/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  *
@@ -182,6 +182,48 @@ namespace QuantConnect
         /// </summary>
         public static Exchange ISE_MERCURY { get; }
             = new("ISE_MERCURY", "J", "International Securities Options Exchange MERCURY", QuantConnect.Market.USA, SecurityType.Option);
+
+        /// <summary>
+        /// The Chicago Mercantile Exchange (CME), is an organized exchange for the trading of futures and options.
+        /// </summary>
+        public static Exchange CME { get; }
+            = new("CME", "CME", "Futures and Options Chicago Mercantile Exchange", QuantConnect.Market.CME, SecurityType.Future, SecurityType.FutureOption);
+
+        /// <summary>
+        /// The Chicago Board of Trade (CBOT) is a commodity exchange
+        /// </summary>
+        public static Exchange CBOT { get; }
+            = new("CBOT", "CBOT", " Chicago Board of Trade Commodity Exchange", QuantConnect.Market.CBOT, SecurityType.Future, SecurityType.FutureOption);
+
+        /// <summary>
+        /// Cboe Futures Exchange
+        /// </summary>
+        public static Exchange CFE { get; }
+            = new("CFE", "CFE", "CFE Futures Exchange", QuantConnect.Market.CFE, SecurityType.Future);
+
+        /// <summary>
+        /// COMEX Commodity Exchange
+        /// </summary>
+        public static Exchange COMEX { get; }
+            = new("COMEX", "COMEX", "COMEX Futures Exchange", QuantConnect.Market.COMEX, SecurityType.Future);
+
+        /// <summary>
+        /// The Intercontinental Exchange
+        /// </summary>
+        public static Exchange ICE { get; }
+            = new("ICE", "ICE", "The Intercontinental Exchange", QuantConnect.Market.ICE, SecurityType.Future);
+
+        /// <summary>
+        /// New York Mercantile Exchange
+        /// </summary>
+        public static Exchange NYMEX { get; }
+            = new("NYMEX", "NYMEX", "New York Mercantile Exchange", QuantConnect.Market.NYMEX, SecurityType.Future, SecurityType.FutureOption);
+
+        /// <summary>
+        /// London International Financial Futures and Options Exchange
+        /// </summary>
+        public static Exchange NYSELIFFE { get; }
+            = new("NYSELIFFE", "NYSELIFFE", "London International Financial Futures and Options Exchange", QuantConnect.Market.NYSELIFFE, SecurityType.Future, SecurityType.FutureOption);
 
         /// <summary>
         /// Exchange description

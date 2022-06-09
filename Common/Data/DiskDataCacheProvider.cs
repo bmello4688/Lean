@@ -16,9 +16,11 @@
 
 using System.IO;
 using Ionic.Zip;
-using QuantConnect.Interfaces;
-using QuantConnect.Logging;
+using System.Linq;
 using QuantConnect.Util;
+using QuantConnect.Logging;
+using QuantConnect.Interfaces;
+using System.Collections.Generic;
 
 namespace QuantConnect.Data
 {
@@ -71,6 +73,7 @@ namespace QuantConnect.Data
                     // Extract our entry and return it
                     var stream = new MemoryStream();
                     entry.Extract(stream);
+                    stream.Position = 0;
                     return stream;
                 }
             }
@@ -90,6 +93,15 @@ namespace QuantConnect.Data
         {
             LeanData.ParseKey(key, out var filePath, out var entryName);
             Compression.ZipCreateAppendData(filePath, entryName, data, true);
+        }
+
+        /// <summary>
+        /// Returns a list of zip entries in a provided zip file
+        /// </summary>
+        public List<string> GetZipEntries(string zipFile)
+        {
+            using var stream = new FileStream(zipFile, FileMode.Open, FileAccess.Read);
+            return Compression.GetZipEntryFileNames(stream).ToList();
         }
 
         /// <summary>

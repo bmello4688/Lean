@@ -4,8 +4,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <RootNamespace>QuantConnect.Research</RootNamespace>
     <AssemblyName>QuantConnect.Research</AssemblyName>
-    <TargetFramework>net5.0</TargetFramework>
-    <LangVersion>9</LangVersion>
+    <TargetFramework>net6.0</TargetFramework>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -37,11 +36,7 @@
   <ItemGroup>
     <PackageReference Include="Deedle" Version="2.1.0" />
     <PackageReference Include="Plotly.NET" Version="2.0.0-preview.14" />
-    <PackageReference Include="QuantConnect.pythonnet" Version="2.0.10" />
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="5.0.3">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="QuantConnect.pythonnet" Version="2.0.15" />
     <PackageReference Include="NodaTime" Version="3.0.5" />
   </ItemGroup>
   <ItemGroup>
@@ -78,6 +73,7 @@
     <None Include="readme.md" />
     <Content Include="start.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
     </Content>
   </ItemGroup>
   <ItemGroup>

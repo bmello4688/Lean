@@ -36,6 +36,7 @@ namespace QuantConnect.Algorithm.CSharp
     {
         private const string UnderlyingTicker = "GOOG";
         public Symbol OptionSymbol;
+        private bool _optionExpired;
 
         public override void Initialize()
         {
@@ -68,7 +69,7 @@ namespace QuantConnect.Algorithm.CSharp
                     var contractsByExpiration = chain.Where(x => x.Expiry != Time.Date).OrderBy(x => x.Expiry);
                     var contract = contractsByExpiration.FirstOrDefault();
 
-                    if (contract != null)
+                    if (contract != null && IsMarketOpen(contract.Symbol))
                     {
                         // if found, trade it
                         MarketOrder(contract.Symbol, 1);
@@ -85,6 +86,27 @@ namespace QuantConnect.Algorithm.CSharp
         public override void OnOrderEvent(OrderEvent orderEvent)
         {
             Log(orderEvent.ToString());
+
+            // Check for our expected OTM option expiry
+            if (orderEvent.Message == "OTM")
+            {
+                // Assert it is at midnight (5AM UTC)
+                if (orderEvent.UtcTime != new DateTime(2016, 1, 16, 5, 0, 0))
+                {
+                    throw new ArgumentException($"Expiry event was not at the correct time, {orderEvent.UtcTime}");
+                }
+
+                _optionExpired = true;
+            }
+        }
+
+        public override void OnEndOfAlgorithm()
+        {
+            // Assert we had our option expire and fill a liquidation order
+            if (_optionExpired != true)
+            {
+                throw new ArgumentException("Algorithm did not process the option expiration like expected");
+            }
         }
 
         /// <summary>
@@ -96,6 +118,16 @@ namespace QuantConnect.Algorithm.CSharp
         /// This is used by the regression test system to indicate which languages this algorithm is written in.
         /// </summary>
         public Language[] Languages { get; } = { Language.CSharp, Language.Python };
+
+        /// <summary>
+        /// Data Points count of all timeslices of algorithm
+        /// </summary>
+        public long DataPoints => 41730;
+
+        /// <summary>
+        /// Data Points count of the algorithm history
+        /// </summary>
+        public int AlgorithmHistoryDataPoints => 0;
 
         /// <summary>
         /// This is used by the regression test system to indicate what the expected statistics are from running the algorithm
@@ -143,7 +175,7 @@ namespace QuantConnect.Algorithm.CSharp
             {"Mean Population Magnitude", "0%"},
             {"Rolling Averaged Population Direction", "0%"},
             {"Rolling Averaged Population Magnitude", "0%"},
-            {"OrderListHash", "9e67da104e62950d6e299bcabe1bd442"}
+            {"OrderListHash", "c6d089f1fb86379c74a7413a9c2f8553"}
         };
     }
 }
