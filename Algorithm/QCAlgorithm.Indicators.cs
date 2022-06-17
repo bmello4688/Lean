@@ -2559,6 +2559,23 @@ namespace QuantConnect.Algorithm
         /// </summary>
         /// <param name="symbol">The symbol to register against</param>
         /// <param name="indicator">The indicator to receive data from the consolidator</param>
+        /// <param name="resolution">The resolution at which to send data to the indicator, null to use the same resolution as the subscription</param>
+        /// <param name="selector">Selects a value from the BaseData send into the indicator, if null defaults to a cast (x => (T)x)</param>
+        [DocumentationAttribute(ConsolidatingData)]
+        [DocumentationAttribute(Indicators)]
+        public void RegisterIndicator<T>(Symbol symbol, IndicatorBase<T> indicator, Func<DateTime, CalendarInfo> calendar, Func<IBaseData, T> selector = null) 
+            where T : class, IBaseData
+        {
+            RegisterIndicator(symbol, indicator, ResolveConsolidator(symbol, calendar, typeof(T)), selector);
+        }
+
+
+        /// <summary>
+        /// Registers the consolidator to receive automatic updates as well as configures the indicator to receive updates
+        /// from the consolidator.
+        /// </summary>
+        /// <param name="symbol">The symbol to register against</param>
+        /// <param name="indicator">The indicator to receive data from the consolidator</param>
         /// <param name="consolidator">The consolidator to receive raw subscription data</param>
         /// <param name="selector">Selects a value from the BaseData send into the indicator, if null defaults to a cast (x => (T)x)</param>
         [DocumentationAttribute(ConsolidatingData)]
@@ -2662,6 +2679,33 @@ namespace QuantConnect.Algorithm
         /// </summary>
         /// <param name="symbol">The symbol whose indicator we want</param>
         /// <param name="indicator">The indicator we want to warm up</param>
+        /// <param name="resolution">The resolution</param>
+        /// <param name="selector">Selects a value from the BaseData to send into the indicator, if null defaults to the Value property of BaseData (x => x.Value)</param>
+        [DocumentationAttribute(HistoricalData)]
+        [DocumentationAttribute(Indicators)]
+        public void WarmUpIndicator<T>(Symbol symbol, IndicatorBase<T> indicator, Func<DateTime, CalendarInfo> calendar, Func<IBaseData, T> selector = null) 
+            where T : class, IBaseData
+        {
+            var history = GetIndicatorWarmUpHistory(symbol, indicator, Resolution.Daily.ToTimeSpan());
+            if (history == Enumerable.Empty<Slice>()) return;
+
+            // assign default using cast
+            selector ??= (x => (T)x);
+
+            // we expect T type as input
+            Action<T> onDataConsolidated = bar =>
+            {
+                indicator.Update(selector(bar));
+            };
+
+            WarmUpIndicatorImpl(symbol, calendar, onDataConsolidated, history);
+        }
+
+        /// <summary>
+        /// Warms up a given indicator with historical data
+        /// </summary>
+        /// <param name="symbol">The symbol whose indicator we want</param>
+        /// <param name="indicator">The indicator we want to warm up</param>
         /// <param name="period">The necessary period to warm up the indicator</param>
         /// <param name="selector">Selects a value from the BaseData send into the indicator, if null defaults to a cast (x => (T)x)</param>
         [DocumentationAttribute(HistoricalData)]
@@ -2715,6 +2759,57 @@ namespace QuantConnect.Algorithm
             }
 
             return Enumerable.Empty<Slice>();
+        }
+
+        private void WarmUpIndicatorImpl<T>(Symbol symbol, Func<DateTime, CalendarInfo> period, Action<T> handler, IEnumerable<Slice> history)
+            where T : class, IBaseData
+        {
+            IDataConsolidator consolidator;
+            if (SubscriptionManager.SubscriptionDataConfigService.GetSubscriptionDataConfigs(symbol).Count > 0)
+            {
+                consolidator = Consolidate(symbol, period, handler);
+            }
+            else
+            {
+                var providedType = typeof(T);
+                if (providedType.IsAbstract)
+                {
+                    var dataType = SubscriptionManager.LookupSubscriptionConfigDataTypes(
+                        symbol.SecurityType,
+                        Resolution.Daily,
+                        // order by tick type so that behavior is consistent with 'GetSubscription()'
+                        symbol.IsCanonical()).OrderBy(tuple => tuple.Item2).First();
+
+                    consolidator = CreateConsolidator(period, dataType.Item1, dataType.Item2);
+                }
+                else
+                {
+                    // if the 'providedType' is not abstract we use it instead to determine which consolidator to use
+                    var tickType = LeanData.GetCommonTickTypeForCommonDataTypes(providedType, symbol.SecurityType);
+                    consolidator = CreateConsolidator(period, providedType, tickType);
+                }
+                consolidator.DataConsolidated += (s, bar) => handler((T)bar);
+            }
+
+            var consolidatorInputType = consolidator.InputType;
+            IBaseData lastBar = null;
+            foreach (var slice in history)
+            {
+                var data = slice.Get(consolidatorInputType);
+                if (data.ContainsKey(symbol))
+                {
+                    lastBar = (IBaseData)data[symbol];
+                    consolidator.Update(lastBar);
+                }
+            }
+
+            // Scan for time after we've pumped all the data through for this consolidator
+            if (lastBar != null)
+            {
+                consolidator.Scan(lastBar.EndTime);
+            }
+
+            SubscriptionManager.RemoveConsolidator(symbol, consolidator);
         }
 
         private void WarmUpIndicatorImpl<T>(Symbol symbol, TimeSpan period, Action<T> handler, IEnumerable<Slice> history)
@@ -2817,6 +2912,37 @@ namespace QuantConnect.Algorithm
             }
 
             return CreateConsolidator(timeSpan.Value, subscription.Type, subscription.TickType);
+        }
+
+        /// <summary>
+        /// Gets the default consolidator for the specified symbol and calendar
+        /// </summary>
+        /// <param name="symbol">The symbol whose data is to be consolidated</param>
+        /// <param name="calendar">The requested time span for the consolidator, if null, uses the resolution from subscription</param>
+        /// <param name="dataType">The data type for this consolidator, if null, uses TradeBar over QuoteBar if present</param>
+        /// <returns>The new default consolidator</returns>
+        [DocumentationAttribute(ConsolidatingData)]
+        [DocumentationAttribute(Indicators)]
+        public IDataConsolidator ResolveConsolidator(Symbol symbol, Func<DateTime, CalendarInfo> calendar, Type dataType = null)
+        {
+            if (calendar == null)
+            {
+                throw new ArgumentNullException($"Unable to create {symbol} consolidator because calandar is null");
+            }
+
+            var tickType = dataType != null ? LeanData.GetCommonTickTypeForCommonDataTypes(dataType, symbol.SecurityType) : (TickType?)null;
+            var subscription = GetSubscription(symbol, tickType);
+
+            // verify this consolidator will give reasonable results, if someone asks for second consolidation but we have minute
+            // data we won't be able to do anything good, we'll call it second, but it would really just be minute!
+            if (calendar.Invoke(DateTime.UtcNow).Period < subscription.Resolution.ToTimeSpan())
+            {
+                throw new ArgumentException($"Unable to create {symbol} consolidator because {symbol} is registered for " +
+                    Invariant($"{subscription.Resolution.ToStringInvariant()} data. Consolidators require higher resolution data to produce lower resolution data.")
+                );
+            }
+
+            return CreateConsolidator(calendar, subscription.Type, subscription.TickType);
         }
 
         /// <summary>
